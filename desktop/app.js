@@ -128,13 +128,13 @@ function openBrowserUrl(url, internal = false) {
   document.querySelector('[data-browser-choice]')?.remove();
   const overlay = document.createElement('div');
   overlay.dataset.browserChoice = '';
-  overlay.style.cssText = 'position:fixed;inset:0;z-index:3000;background:rgba(36,35,31,.28);display:grid;place-items:center;padding:20px;';
-  overlay.innerHTML = `<div role="dialog" aria-modal="true" aria-labelledby="browser-choice-title" style="width:min(380px,100%);background:#faf8f3;border:1px solid #e2dfd8;border-radius:14px;padding:20px;box-shadow:0 20px 60px rgba(36,35,31,.2);display:flex;flex-direction:column;gap:14px;">
-    <div id="browser-choice-title" style="font-weight:600;color:#24231f;">打开网址</div>
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:3000;background:rgba(36,35,31,.2);display:grid;place-items:start end;padding:42px 14px;';
+  overlay.innerHTML = `<div role="dialog" aria-modal="true" aria-labelledby="browser-choice-title" style="width:min(320px,calc(100vw - 28px));background:#faf8f3;border:1px solid #e2dfd8;border-radius:14px;padding:14px;box-shadow:0 20px 60px rgba(36,35,31,.2);display:flex;flex-direction:column;gap:12px;">
+    <div id="browser-choice-title" style="font-weight:600;color:#24231f;">Open link</div>
     <div data-choice-url style="font-size:12px;color:#7d776e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
-      <button data-external style="border:1px solid #d8d4cb;background:#fff;color:#24231f;border-radius:9px;padding:9px 13px;font-size:13px;cursor:pointer;">外置浏览器</button>
-      <button data-internal style="border:none;background:#17796d;color:#fff;border-radius:9px;padding:9px 13px;font-size:13px;font-weight:600;cursor:pointer;">内置浏览器</button>
+      <button data-external style="border:1px solid #d8d4cb;background:#fff;color:#24231f;border-radius:9px;padding:9px 13px;font-size:13px;cursor:pointer;">External browser</button>
+      <button data-internal style="border:none;background:#17796d;color:#fff;border-radius:9px;padding:9px 13px;font-size:13px;font-weight:600;cursor:pointer;">Built-in browser</button>
     </div>
   </div>`;
   overlay.querySelector('[data-choice-url]').textContent = url;
@@ -958,7 +958,7 @@ function renderAgent(root) {
     card.innerHTML = `
       <div style="width:34px;height:34px;color:#17796d;margin:0 auto;display:flex;">${I.agent}</div>
       <div style="font-weight:600;color:#24231f;">Connect ${agentProviderName()}</div>
-      <div style="font-size:12px;color:#9e9a93;line-height:1.5;">${selectedAgentProvider === 'codex' ? 'Sign in with your ChatGPT subscription using a device code.' : 'Sign in with your Claude subscription in the built-in browser.'} No API key is stored in lunix.</div>
+      <div style="font-size:12px;color:#9e9a93;line-height:1.5;">${selectedAgentProvider === 'codex' ? 'Sign in with your ChatGPT subscription using a device code.' : 'Sign in with your Claude subscription using the built-in or external browser.'} No API key is stored in lunix.</div>
       <button data-connect style="border:none;background:#17796d;color:#fff;border-radius:9px;padding:9px;font-size:13px;font-weight:600;cursor:pointer;">Sign in with ${agentProviderName()}</button>
       <button data-switch-provider style="border:1px solid #d7d2c8;background:#fff;color:#6f685e;border-radius:9px;padding:9px;font-size:13px;cursor:pointer;">Use ${selectedAgentProvider === 'claude' ? 'Codex' : 'Claude'} instead</button>
       <div data-err style="color:#b65347;font-size:12px;min-height:14px;">${errMsg ? escapeHtml(errMsg) : ''}</div>`;
@@ -1015,10 +1015,10 @@ function renderAgent(root) {
     unmountAssistant(); closeChat();
     statusEl.textContent = 'waiting for login'; log.innerHTML = '';
     const card = document.createElement('div'); card.style.cssText = 'margin:auto;max-width:360px;text-align:center;display:flex;flex-direction:column;gap:12px;';
-    card.innerHTML = `<div style="font-weight:600;color:#24231f;">Finish signing in</div><div style="font-size:12px;color:#9e9a93;line-height:1.5;">Complete Claude’s login in the built-in browser, then paste the authorization code here.</div><button data-open style="border:1px solid #e2dfd8;background:#fff;border-radius:9px;padding:8px;font-size:13px;cursor:pointer;">Open login</button><input data-code placeholder="Paste authorization code" autocomplete="off" style="border:1px solid #e2dfd8;border-radius:9px;padding:9px 12px;font-size:13px;outline:none;"><button data-finish style="border:none;background:#17796d;color:#fff;border-radius:9px;padding:9px;font-size:13px;font-weight:600;cursor:pointer;">Finish login</button><div data-err style="color:#b65347;font-size:12px;min-height:14px;"></div>`;
+    card.innerHTML = `<div style="font-weight:600;color:#24231f;">Finish signing in</div><div style="font-size:12px;color:#9e9a93;line-height:1.5;">Choose the built-in or external browser for Claude’s login page, then paste the authorization code here.</div><button data-open style="border:1px solid #e2dfd8;background:#fff;border-radius:9px;padding:8px;font-size:13px;cursor:pointer;">Open login</button><input data-code placeholder="Paste authorization code" autocomplete="off" style="border:1px solid #e2dfd8;border-radius:9px;padding:9px 12px;font-size:13px;outline:none;"><button data-finish style="border:none;background:#17796d;color:#fff;border-radius:9px;padding:9px;font-size:13px;font-weight:600;cursor:pointer;">Finish login</button><div data-err style="color:#b65347;font-size:12px;min-height:14px;"></div>`;
     log.appendChild(card);
     const code = card.querySelector('[data-code]'), finish = card.querySelector('[data-finish]'), err = card.querySelector('[data-err]');
-    const open = () => openBrowserUrl(authSession.authUrl, true); card.querySelector('[data-open]').onclick = open; open();
+    const open = () => openBrowserUrl(authSession.authUrl); card.querySelector('[data-open]').onclick = open; open();
     const complete = async () => {
       if (!code.value.trim()) { err.textContent = 'Paste the authorization code.'; return; }
       finish.disabled = true; finish.textContent = 'Verifying login…'; err.textContent = '';
