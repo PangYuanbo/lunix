@@ -700,9 +700,17 @@ function renderAgent(root) {
     try {
       const restored = await nodusClient.sessions.events(agentSession.session.id);
       await pushEvents(restored.events);
+      await nodusClient.sessions.sync(agentSession.session.id, []);
       booting = false; statusEl.textContent = 'claude · live'; paintLog();
     } catch (error) {
-      clearRuntimeSession(); agentSession = null; authCard('Saved runtime expired. Connect again.');
+      try {
+        statusEl.textContent = 'restarting runtime…';
+        const restarted = await nodusClient.sessions.start(agentSession.agentId);
+        agentSession = { agentId: agentSession.agentId, session: restarted.session };
+        saveRuntimeSession(agentSession); booting = false; statusEl.textContent = 'claude · live'; paintLog();
+      } catch (restartError) {
+        clearRuntimeSession(); agentSession = null; authCard('Saved runtime expired. Connect again.');
+      }
     }
   }
   async function send() {
