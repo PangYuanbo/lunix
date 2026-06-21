@@ -8,8 +8,8 @@ assert.match(fs.readFileSync(require.resolve('../content-first.css'), 'utf8'), /
 assert.match(app, /video src=.*controls autoplay/);
 assert.match(app, /ext === 'md'/);
 assert.match(app, /nodusClient\.sessions\.preview/);
-assert.match(app, /actionLabel: 'Open in Browser'/);
-assert.match(app, /openBrowserUrl\(preview\.url, true\)/);
+assert.match(app, /actionLabel: 'Open Preview'/);
+assert.match(app, /previewTarget = \{ url: preview\.url/);
 assert.doesNotMatch(app, /function openRuntimePreview/);
 assert.match(server, /accept-ranges/);
 assert.match(server, /\/api\/local\/raw/);

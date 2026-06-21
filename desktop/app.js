@@ -796,7 +796,7 @@ function openVscodeLauncher() {
   document.body.appendChild(overlay);
 }
 
-const AGENT_BROWSER_PROMPT = `\n\nLunix browser workflow:\n- For a web app preview, start the server on 5173, 3000, 4173, 8000, or 8080, bind it to 0.0.0.0 (never 127.0.0.1), and include its localhost URL in your response.\n- For a website the user should open in Lunix's built-in Browser, include exactly: LUNIX_BROWSER_OPEN https://example.com\n- Do not expose cookies or tokens, and do not claim a page works unless you checked it.`;
+const AGENT_BROWSER_PROMPT = `\n\nLunix browser workflow:\n- For a web app preview, start the server on 5173, 3000, 4173, 8000, or 8080, bind it to 0.0.0.0 (never 127.0.0.1), and include a localhost URL such as http://localhost:8080/ in your response. Never use LUNIX_BROWSER_OPEN for localhost, 127.0.0.1, or 0.0.0.0.\n- For a public website the user should open in Lunix's built-in Browser, include exactly: LUNIX_BROWSER_OPEN https://example.com\n- Do not expose cookies or tokens, and do not claim a page works unless you checked it.`;
 
 function renderAgent(root) {
   root.classList.remove('no-padding');
@@ -901,16 +901,24 @@ function renderAgent(root) {
   async function openAssistantLinks(text, key = text) {
     if (!text || openedPreviews.has(key)) return;
     openedPreviews.add(key);
-    const browserMatch = text.match(/LUNIX_BROWSER_OPEN\s+(https?:\/\/\S+)/i);
-    if (browserMatch) openBrowserUrl(browserMatch[1].replace(/[),.;]+$/, ''), true);
-    const match = text.match(/https?:\/\/(?:localhost|127\.0\.0\.1):([0-9]{2,5})/i);
-    if (!match || !agentSession) return;
+    const localMatch = text.match(/https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0):([0-9]{2,5})(?:\/\S*)?/i);
+    if (!localMatch) {
+      const browserMatch = text.match(/LUNIX_BROWSER_OPEN\s+(https?:\/\/\S+)/i);
+      if (browserMatch) openBrowserUrl(browserMatch[1].replace(/[),.;]+$/, ''), true);
+      return;
+    }
+    if (!agentSession) return;
     try {
-      const preview = await nodusClient.sessions.preview(agentSession.session.id, Number(match[1]));
-      const open = () => openBrowserUrl(preview.url, true);
-      mountAssistant().add({ id: `browser-${key}`, role: 'system', parts: [{ type: 'data-status', data: { title: 'Browser ready', detail: `Workspace port ${preview.port} is available.`, tone: 'success', actionLabel: 'Open in Browser', onAction: open } }] });
+      const preview = await nodusClient.sessions.preview(agentSession.session.id, Number(localMatch[1]));
+      const open = () => {
+        previewTarget = { url: preview.url, name: `Preview · ${preview.port}` };
+        const win = windows.get('preview');
+        if (win) { renderPreview(win.querySelector('.lunix-window-content')); focusWin(win); }
+        else openApp(GROUP_B.find((app) => app.id === 'preview'));
+      };
+      mountAssistant().add({ id: `preview-${key}`, role: 'system', parts: [{ type: 'data-status', data: { title: 'Preview ready', detail: `Workspace port ${preview.port} is available.`, tone: 'success', actionLabel: 'Open Preview', onAction: open } }] });
       open();
-    } catch (error) { mountAssistant().add(statusMessage('Browser unavailable', error.message || String(error), 'warning')); }
+    } catch (error) { mountAssistant().add(statusMessage('Preview unavailable', error.message || String(error), 'warning')); }
   }
   async function pushEvents(events, replace = false) {
     const items = events || [];

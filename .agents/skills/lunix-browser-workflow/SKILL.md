@@ -5,7 +5,8 @@ description: Use Lunix's built-in Browser or Preview when a task involves web de
 
 # Lunix Browser Workflow
 
-- Web development: start the app on `5173`, `3000`, `4173`, `8000`, or `8080`; include the localhost URL in the response so Lunix opens Preview.
-- Website tasks: include `LUNIX_BROWSER_OPEN https://example.com` so Lunix opens its built-in Browser.
+- Web development: start the app on `5173`, `3000`, `4173`, `8000`, or `8080`, bind to `0.0.0.0`, and report it as `http://localhost:<port>/` so Lunix opens Preview.
+- Never use `LUNIX_BROWSER_OPEN` for `localhost`, `127.0.0.1`, or `0.0.0.0`.
+- Public website tasks: include `LUNIX_BROWSER_OPEN https://example.com` so Lunix opens its built-in Browser.
 - Check the rendered page before claiming success.
 - Never print cookies, tokens, or browser credentials.
