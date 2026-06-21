@@ -95,7 +95,7 @@ const MOUNTS = [
 ];
 
 const GROUP_A = [{ id: 'storyboard', label: 'Storyboard', icon: I.storyboard }];
-const WELCOME_APP = { id: 'welcome', label: 'start', icon: I.terminal };
+const WELCOME_APP = { id: 'welcome', label: 'Welcome to Lunix', icon: I.apps };
 const GROUP_B = [
   { id: 'browser', label: 'Browser', icon: I.browser },
   { id: 'terminal', label: 'Terminal', icon: I.terminal, accent: true },
@@ -338,7 +338,6 @@ function renderApp(id, root) {
 function renderWelcome(root) {
   root.innerHTML = `
     <div class="lunix-welcome">
-      <div class="lunix-welcome-command"><span>~/Lunix</span><b>❯</b> start</div>
       <div class="lunix-welcome-main">
         <pre class="lunix-welcome-mark" aria-label="Lunix cloud desktop logo"><span class="navy">       ╭──────────────╮
     ╭──╯              ╰──╮
@@ -353,7 +352,7 @@ function renderWelcome(root) {
  </span><span class="mint">╰─────────</span><span class="blue">╯</span><span class="mint">  ╰────────╯</span><span class="navy">      │
             </span><span class="blue">╰────╯</span><span class="navy">              ╰─────╯</span></pre>
         <div class="lunix-welcome-copy">
-          <p class="lunix-welcome-eyebrow">LUNIX DESKTOP</p>
+          <p class="lunix-welcome-eyebrow">HACKATHON PROJECT</p>
           <h1>Your local interface.<br>Your agentic workspace.</h1>
           <p>Lunix renders a complete desktop locally while agent, workspace, and browser runtimes stay independently replaceable.</p>
           <ul>

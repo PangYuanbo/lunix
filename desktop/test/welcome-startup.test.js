@@ -1,9 +1,11 @@
 const assert = require('assert');
 const fs = require('fs');
 const page = fs.readFileSync(require.resolve('../app.js'), 'utf8');
-assert.match(page, /const WELCOME_APP = \{ id: 'welcome', label: 'start'/);
+assert.match(page, /const WELCOME_APP = \{ id: 'welcome', label: 'Welcome to Lunix'/);
 assert.match(page, /const welcomeWindow = openApp\(WELCOME_APP\)/);
 assert.match(page, /Your local interface/);
+assert.match(page, /HACKATHON PROJECT/);
+assert.doesNotMatch(page, /lunix-welcome-command/);
 assert.doesNotMatch(page, /const agentWindow = openApp/);
 assert.doesNotMatch(page, /const previewWindow = openApp/);
 console.log('welcome startup wiring ok');
