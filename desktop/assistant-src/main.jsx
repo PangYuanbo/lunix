@@ -5,7 +5,7 @@ import { Conversation, ConversationContent, ConversationScrollButton } from './a
 import { Message, MessageContent, MessageResponse } from './ai-elements/message';
 import { Reasoning, ReasoningContent, ReasoningTrigger } from './ai-elements/reasoning';
 import { Tool, ToolContent, ToolHeader, ToolInput, ToolOutput } from './ai-elements/tool';
-import { eventsToUIMessages, streamingUIMessage, userUIMessage } from './protocol';
+import { agentEventUIMessage, eventsToUIMessages, streamingUIMessage, userUIMessage } from './protocol';
 import './styles.css';
 
 function DataCard({ part }) {
@@ -78,6 +78,7 @@ window.LunixAssistant = {
       addUser: (id, value) => store.append(userUIMessage(id, value)),
       stream: (id, value, preview) => store.upsert(streamingUIMessage(id, value, preview)),
       finish: (id, value) => { store.remove(`stream-${id}`); store.upsert({ id, role: 'assistant', parts: [{ type: 'text', text: value }] }); },
+      agentEvent: (event) => store.upsert(agentEventUIMessage(event)),
       add: store.upsert,
       setBusy: store.setBusy,
       setLoading: store.setLoading,

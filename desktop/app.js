@@ -900,6 +900,7 @@ function renderAgent(root) {
       lastServerFrameAt = Date.now();
       if (frame.type === 'ready') { clearTimeout(chatReadyTimer); chatReadyTimer = null; socketReady = true; statusEl.textContent = `${selectedAgentProvider} · live`; hideLoading(); return; }
       if (frame.type === 'status') { mountAssistant().setBusy(Boolean(frame.busy)); if (frame.busy) { lockComposer(true, true); if (frame.activity) mountAssistant().setTask({ title: 'Agent is working', detail: frame.activity, tone: 'working', actions: false, elapsed: elapsedLabel(Date.now() - taskStartedAt), onReconnect: reconnectTask, onStop: stopTask }); } else if (sending) finishTurn(); else { clearTaskState(); hideLoading(); } return; }
+      if (frame.type === 'agent_event' && frame.event) { lastProgressAt = Date.now(); mountAssistant().agentEvent(frame.event); return; }
       if (frame.type === 'delta') {
         if (aborted || frame.preview) return;
         lastProgressAt = Date.now();

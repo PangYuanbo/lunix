@@ -36,3 +36,29 @@ export function userUIMessage(id, value) {
 export function streamingUIMessage(id, value, preview = false) {
   return { id: `stream-${id}`, role: 'assistant', parts: [{ type: 'text', text: value, state: 'streaming' }], metadata: { streaming: true, preview } };
 }
+
+export function agentEventUIMessage(event) {
+  const eventId = String(event.id || `${event.type}-${Date.now()}`);
+  if (event.type === 'reasoning') {
+    return { id: `agent-${eventId}`, role: 'assistant', parts: [{ type: 'reasoning', text: text(event.text), state: event.state === 'streaming' ? 'streaming' : 'done' }] };
+  }
+  if (event.type === 'tool') {
+    return {
+      id: `agent-${eventId}`,
+      role: 'assistant',
+      parts: [{
+        type: 'dynamic-tool',
+        toolCallId: event.toolCallId,
+        toolName: text(event.name) || 'Tool',
+        state: event.state || 'input-available',
+        input: event.input,
+        output: event.output,
+        errorText: event.errorText,
+      }],
+    };
+  }
+  if (event.type === 'usage') {
+    return { id: `agent-${eventId}`, role: 'system', parts: [{ type: 'data-usage', data: event.usage || {} }] };
+  }
+  return { id: `agent-${eventId}`, role: 'system', parts: [{ type: 'data-event', data: { eventType: event.type || 'agent_event', payload: event } }] };
+}

@@ -26,5 +26,10 @@ const source = fs.readFileSync(require.resolve('../assistant-src/protocol.js'), 
   assert.equal(official.parts[1].type, 'tool-search');
   assert.equal(protocol.userUIMessage('u1', 'hello').parts[0].type, 'text');
   assert.equal(protocol.streamingUIMessage('a1', 'partial').metadata.streaming, true);
+  assert.equal(protocol.agentEventUIMessage({ id: 'r1', type: 'reasoning', text: 'why', state: 'streaming' }).parts[0].type, 'reasoning');
+  const tool = protocol.agentEventUIMessage({ id: 't1', type: 'tool', name: 'Shell', state: 'output-available', input: { command: 'pwd' }, output: '/workspace' });
+  assert.equal(tool.parts[0].type, 'dynamic-tool');
+  assert.equal(tool.parts[0].output, '/workspace');
+  assert.equal(protocol.agentEventUIMessage({ id: 'u1', type: 'usage', usage: { input_tokens: 12 } }).parts[0].type, 'data-usage');
   console.log('Assistant UIMessage protocol mapping ok');
 })().catch((error) => { console.error(error); process.exitCode = 1; });
