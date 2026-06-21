@@ -9,6 +9,7 @@ fs.mkdirSync(path.join(out, 'terminal'), { recursive: true });
 for (const file of ['index.html', 'styles.css', 'app.js', 'nodus-sdk.js']) fs.copyFileSync(path.join(root, 'desktop', file), path.join(out, file));
 for (const file of ['index.html', 'styles.css', 'renderer.js']) fs.copyFileSync(path.join(root, 'terminal', file), path.join(out, 'terminal', file));
 for (const dir of ['web', 'src']) fs.cpSync(path.join(root, 'terminal', dir), path.join(out, 'terminal', dir), { recursive: true });
+fs.cpSync(path.join(root, 'web-api'), path.join(out, 'api'), { recursive: true });
 
 fs.writeFileSync(path.join(out, 'config.js'), `window.__LUNIX=${JSON.stringify({
   nodusUrl: process.env.NODUS_URL || 'https://nodus-api-production-d291.up.railway.app',

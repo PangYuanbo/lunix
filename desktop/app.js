@@ -439,6 +439,7 @@ function renderBrowser(root) {
   const view = root.querySelector('[data-view]'), frame = root.querySelector('[data-frame]');
   const urlIn = root.querySelector('[data-url]'), splash = root.querySelector('[data-splash]'), msg = root.querySelector('[data-msg]');
   let sessionId = null;
+  let liveView = null, debugTimer = null;
   const post = (path, body) => fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
   const size = () => ({ width: Math.max(360, Math.round(view.clientWidth)), height: Math.max(260, Math.round(view.clientHeight)) });
   const fit = (w, h) => { frame.style.width = w + 'px'; frame.style.height = h + 'px'; };
@@ -451,8 +452,18 @@ function renderBrowser(root) {
       if (s.error || !s.sessionId) { msg.textContent = s.error ? 'Browser unavailable: ' + s.error : 'Could not start a session.'; return; }
       sessionId = s.sessionId; urlIn.value = s.home || '';
       fit(s.width || width, s.height || height);
-      frame.addEventListener('load', () => { if (splash.isConnected) { splash.style.opacity = '0'; setTimeout(() => splash.remove(), 400); } }, { once: true });
-      frame.src = '/api/browser/stream?sessionId=' + encodeURIComponent(sessionId);
+      if (s.liveViewUrl) {
+        liveView = document.createElement('iframe'); liveView.allow = 'clipboard-read; clipboard-write'; liveView.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;background:#fff;';
+        liveView.onload = () => { if (splash.isConnected) { splash.style.opacity = '0'; setTimeout(() => splash.remove(), 400); } };
+        liveView.src = s.liveViewUrl; frame.replaceWith(liveView);
+        debugTimer = setInterval(() => fetch('/api/browser/debug?sessionId=' + encodeURIComponent(sessionId)).then((r) => r.json()).then((d) => {
+          if (d.url) urlIn.value = d.url;
+          if (d.liveViewUrl && liveView.src !== d.liveViewUrl) liveView.src = d.liveViewUrl;
+        }).catch(() => {}), 1500);
+      } else {
+        frame.addEventListener('load', () => { if (splash.isConnected) { splash.style.opacity = '0'; setTimeout(() => splash.remove(), 400); } }, { once: true });
+        frame.src = '/api/browser/stream?sessionId=' + encodeURIComponent(sessionId);
+      }
     }).catch((e) => { msg.textContent = 'Browser unavailable: ' + e.message; });
   });
 
@@ -473,7 +484,7 @@ function renderBrowser(root) {
   const navigate = (url) => { if (!url) return; urlIn.value = url; if (sessionId) post('/api/browser/navigate', { sessionId, url }); };
   const onNavigate = (e) => navigate(e.detail);
   window.addEventListener('lunix-browser-navigate', onNavigate);
-  cleanup.set('browser', () => { window.removeEventListener('lunix-browser-navigate', onNavigate); if (!sessionId) return; const b = JSON.stringify({ sessionId }); if (navigator.sendBeacon) navigator.sendBeacon('/api/browser/release', new Blob([b], { type: 'application/json' })); else post('/api/browser/release', { sessionId }); });
+  cleanup.set('browser', () => { window.removeEventListener('lunix-browser-navigate', onNavigate); clearInterval(debugTimer); if (!sessionId) return; const b = JSON.stringify({ sessionId }); if (navigator.sendBeacon) navigator.sendBeacon('/api/browser/release', new Blob([b], { type: 'application/json' })); else post('/api/browser/release', { sessionId }); });
   urlIn.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') go(); }); // stopPropagation: don't forward to the page
   root.querySelector('[data-go]').onclick = go;
   root.querySelector('[data-reload]').onclick = () => { if (sessionId) post('/api/browser/navigate', { sessionId, url: urlIn.value || 'https://www.google.com' }); };
