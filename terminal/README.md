@@ -1,7 +1,7 @@
 # @lunix/terminal
 
-An Electron and embeddable web terminal powered by [`@wterm/dom`](https://wterm.dev/). The previous
-custom VTE/Grid/GPU implementation is archived at `history/terminal-legacy-2026-06-21/`.
+An Electron and embeddable web terminal powered by [`@wterm/dom`](https://wterm.dev/). The initial
+custom renderer experiment lives at `experiments/terminal-prototype/`.
 
 ## Run
 

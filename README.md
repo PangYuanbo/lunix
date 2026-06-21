@@ -1,13 +1,13 @@
 # lunix-mono
 
-Private monorepo for the lunix web desktop and its embedded terminal.
+A 24-hour hackathon project for the Lunix web desktop and its embedded terminal.
 
 ## Packages
 
 - **`desktop/`** (`@lunix/desktop`) — the web desktop OS shell: window manager, dock, and the
   apps (Files, Browser, Terminal, Agent). A thin frontend; every app is a window onto a runtime.
-- **`terminal/`** (`@lunix/terminal`) — a block-based terminal (Electron app + embeddable web
-  build) that the desktop embeds in its Terminal window.
+- **`terminal/`** (`@lunix/terminal`) — a wterm-powered Electron app and embeddable web terminal.
+- **`experiments/terminal-prototype/`** — the initial custom renderer explored during the hackathon.
 
 ## Dev
 

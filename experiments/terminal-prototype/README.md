@@ -1,8 +1,7 @@
-# @lunix/terminal
+# Terminal Renderer Prototype
 
-A **block-based terminal** with a from-scratch render engine (VTE parser → `Grid<Cell>` → GPU/DOM),
-built as both an Electron app and an embeddable web build. Commands render as cards (cwd + command
-head, exit chip, ANSI-colored output) with a dedicated prompt editor — no xterm.js.
+An early renderer experiment from the Lunix 24-hour hackathon. It explored a block-based terminal
+with a custom VTE parser, grid, and GPU/DOM renderer before the main terminal moved to wterm.
 
 ## Run
 
