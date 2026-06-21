@@ -2,6 +2,32 @@
 // a Files explorer, Memo, an assistant, and a Terminal. Vanilla JS, no framework or dependencies —
 // a desktop shell is just windows + a dock + a little drag math.
 
+// Touch devices get their own interaction layer; desktop keeps the existing web behavior.
+const IS_TOUCH = (navigator.maxTouchPoints || 0) > 0 || (window.matchMedia && matchMedia('(pointer: coarse)').matches);
+
+if (IS_TOUCH) (function lunixTouchSetup() {
+  let vp = document.querySelector('meta[name=viewport]');
+  if (!vp) { vp = document.createElement('meta'); vp.name = 'viewport'; document.head.appendChild(vp); }
+  vp.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover');
+  for (const [name, content] of [['apple-mobile-web-app-capable', 'yes'], ['mobile-web-app-capable', 'yes'], ['apple-mobile-web-app-title', 'Lunix']]) {
+    if (!document.querySelector(`meta[name="${name}"]`)) { const m = document.createElement('meta'); m.name = name; m.content = content; document.head.appendChild(m); }
+  }
+  const s = document.createElement('style');
+  s.textContent =
+    'html,body{position:fixed;overflow:hidden;width:100%;height:100%;overscroll-behavior:none;touch-action:none;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;}' +
+    '.root{height:100vh;height:100dvh;}' +
+    '.lunix-desktop-surface,.lunix-desktop-window,.lunix-window-titlebar,.lunix-window-resize-handle,#dock,.lunix-desktop-topbar{touch-action:none;}' +
+    '.lunix-window-content,.lunix-window-body,.lunix-files-list,.lunix-files-folders,.lunix-files-preview,[data-log],[data-pbody],textarea,input,.lunix-scroll{touch-action:pan-y;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;}' +
+    'button,a,[role=button],.lunix-files-folder,.lunix-files-file{touch-action:manipulation;}' +
+    '@media (pointer:coarse){' +
+    '.lunix-window-resize-handle.se,.lunix-window-resize-handle.sw,.lunix-window-resize-handle.ne,.lunix-window-resize-handle.nw{width:24px;height:24px;}' +
+    '.lunix-window-resize-handle.n,.lunix-window-resize-handle.s{height:16px;}' +
+    '.lunix-window-resize-handle.e,.lunix-window-resize-handle.w{width:16px;}' +
+    '#dock button,.lunix-window-controls button,.lunix-window-actions button{min-width:32px;min-height:32px;}' +
+    '.lunix-window-titlebar{min-height:44px;}}';
+  document.head.appendChild(s);
+})();
+
 // ---- icon set (line icons) ----
 const I = {
   storyboard: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V8.5L12 4l8 4.5V20"/><path d="M8 20v-6h8v6"/></svg>',
@@ -165,9 +191,13 @@ function openApp(app) {
   w.className = 'lunix-desktop-window active';
   w.dataset.app = app.id;
   w.setAttribute('aria-label', app.label);
-  const width = app.id === 'browser' ? 1040 : app.id === 'preview' ? 900 : app.id === 'files' ? 840 : app.id === 'terminal' ? 900 : app.id === 'memo' ? 760 : app.id === 'agent' ? 760 : 620;
-  const height = app.id === 'browser' ? 720 : app.id === 'preview' ? 650 : app.id === 'files' ? 560 : app.id === 'terminal' ? 600 : app.id === 'agent' ? 580 : 480;
-  w.style.cssText = `left:${120 + idx * 34}px;top:${64 + idx * 30}px;width:${width}px;height:${height}px;z-index:${++zTop};`;
+  const desiredWidth = app.id === 'browser' ? 1040 : app.id === 'preview' ? 900 : app.id === 'files' ? 840 : app.id === 'terminal' ? 900 : app.id === 'memo' ? 760 : app.id === 'agent' ? 760 : 620;
+  const desiredHeight = app.id === 'browser' ? 720 : app.id === 'preview' ? 650 : app.id === 'files' ? 560 : app.id === 'terminal' ? 600 : app.id === 'agent' ? 580 : 480;
+  const width = IS_TOUCH ? Math.min(desiredWidth, Math.max(360, innerWidth - 24)) : desiredWidth;
+  const height = IS_TOUCH ? Math.min(desiredHeight, Math.max(280, innerHeight - 76)) : desiredHeight;
+  const left = IS_TOUCH ? Math.max(12, Math.min(120 + idx * 34, innerWidth - width - 12)) : 120 + idx * 34;
+  const top = IS_TOUCH ? Math.max(48, Math.min(64 + idx * 30, innerHeight - height - 12)) : 64 + idx * 30;
+  w.style.cssText = `left:${left}px;top:${top}px;width:${width}px;height:${height}px;z-index:${++zTop};`;
 
   const titleIcon = app.icon || I.doc;
   w.innerHTML = `
@@ -581,13 +611,35 @@ function renderBrowser(root) {
   });
 
   // ---- input forwarding (coords are 1:1 — the remote viewport equals the <img> size) ----
-  const sendMouse = (type, e, extra) => { if (!sessionId) return; const params = { type, x: Math.round(e.offsetX), y: Math.round(e.offsetY), modifiers: mods(e), ...extra }; hosted ? hosted.input({ method: 'Input.dispatchMouseEvent', params }) : post('/api/browser/input', { sessionId, kind: 'mouse', ...params }); };
-  let lastMove = 0;
-  frame.addEventListener('mousemove', (e) => { const t = performance.now(); if (t - lastMove < 35) return; lastMove = t; sendMouse('mouseMoved', e, { button: 'none' }); });
-  frame.addEventListener('mousedown', (e) => { e.preventDefault(); view.focus(); sendMouse('mousePressed', e, { button: BTN[e.button] || 'left', clickCount: 1 }); });
-  frame.addEventListener('mouseup', (e) => { e.preventDefault(); sendMouse('mouseReleased', e, { button: BTN[e.button] || 'left', clickCount: 1 }); });
+  const dispatchMouse = (params) => { hosted ? hosted.input({ method: 'Input.dispatchMouseEvent', params }) : post('/api/browser/input', { sessionId, kind: 'mouse', ...params }); };
+  const sendMouse = (type, e, extra) => { if (!sessionId) return; dispatchMouse({ type, x: Math.round(e.offsetX), y: Math.round(e.offsetY), modifiers: mods(e), ...extra }); };
+  const frameXY = (clientX, clientY) => { const r = frame.getBoundingClientRect(); return { x: Math.round(clientX - r.left), y: Math.round(clientY - r.top) }; };
   frame.addEventListener('contextmenu', (e) => e.preventDefault());
-  view.addEventListener('wheel', (e) => { e.preventDefault(); if (!sessionId) return; const params = { type: 'mouseWheel', x: Math.round(e.offsetX), y: Math.round(e.offsetY), deltaX: e.deltaX, deltaY: e.deltaY, modifiers: mods(e) }; hosted ? hosted.input({ method: 'Input.dispatchMouseEvent', params }) : post('/api/browser/input', { sessionId, kind: 'mouse', ...params }); }, { passive: false });
+  if (!IS_TOUCH) {
+    // ---- desktop web: the existing mouse interaction, unchanged ----
+    let lastMove = 0;
+    frame.addEventListener('mousemove', (e) => { const t = performance.now(); if (t - lastMove < 35) return; lastMove = t; sendMouse('mouseMoved', e, { button: 'none' }); });
+    frame.addEventListener('mousedown', (e) => { e.preventDefault(); view.focus(); sendMouse('mousePressed', e, { button: BTN[e.button] || 'left', clickCount: 1 }); });
+    frame.addEventListener('mouseup', (e) => { e.preventDefault(); sendMouse('mouseReleased', e, { button: BTN[e.button] || 'left', clickCount: 1 }); });
+    view.addEventListener('wheel', (e) => { e.preventDefault(); if (!sessionId) return; dispatchMouse({ type: 'mouseWheel', x: Math.round(e.offsetX), y: Math.round(e.offsetY), deltaX: e.deltaX, deltaY: e.deltaY, modifiers: mods(e) }); }, { passive: false });
+  } else {
+    // ---- iPad / touch: its own design — tap = click, one-finger swipe = scroll the remote page ----
+    let ts = null, moved = false;
+    frame.addEventListener('touchstart', (e) => { if (!sessionId || !e.touches[0]) return; const t = e.touches[0]; ts = { x: t.clientX, y: t.clientY, lx: t.clientX, ly: t.clientY }; moved = false; }, { passive: true });
+    frame.addEventListener('touchmove', (e) => {
+      if (!sessionId || !ts || !e.touches[0]) return;
+      e.preventDefault();
+      const t = e.touches[0], dx = t.clientX - ts.lx, dy = t.clientY - ts.ly; ts.lx = t.clientX; ts.ly = t.clientY;
+      if (Math.abs(t.clientX - ts.x) > 8 || Math.abs(t.clientY - ts.y) > 8) moved = true;
+      const p = frameXY(t.clientX, t.clientY);
+      dispatchMouse({ type: 'mouseWheel', x: p.x, y: p.y, deltaX: -dx, deltaY: -dy, modifiers: 0 }); // content follows the finger
+    }, { passive: false });
+    frame.addEventListener('touchend', () => {
+      if (!sessionId || !ts) return;
+      if (!moved) { const p = frameXY(ts.x, ts.y); view.focus(); dispatchMouse({ type: 'mousePressed', x: p.x, y: p.y, button: 'left', clickCount: 1, modifiers: 0 }); dispatchMouse({ type: 'mouseReleased', x: p.x, y: p.y, button: 'left', clickCount: 1, modifiers: 0 }); }
+      ts = null; moved = false;
+    }, { passive: false });
+  }
   const sendKey = (type, e) => { if (!sessionId) return; const params = { type, key: e.key, code: e.code, text: type === 'keyDown' && e.key.length === 1 ? e.key : '', unmodifiedText: type === 'keyDown' && e.key.length === 1 ? e.key : '', windowsVirtualKeyCode: e.keyCode, nativeVirtualKeyCode: e.keyCode, modifiers: mods(e) }; hosted ? hosted.input({ method: 'Input.dispatchKeyEvent', params }) : post('/api/browser/input', { sessionId, kind: 'key', type, key: e.key, code: e.code, text: params.text, vk: e.keyCode, modifiers: params.modifiers }); };
   view.addEventListener('keydown', (e) => { if (e.metaKey && e.key === 'v') return; e.preventDefault(); sendKey('keyDown', e); });
   view.addEventListener('keyup', (e) => { e.preventDefault(); sendKey('keyUp', e); });
