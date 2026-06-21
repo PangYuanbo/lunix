@@ -41,12 +41,12 @@ const FS = {
 // ---- dock config ----
 const ACCENT = 'rgb(74,158,142)', MUTED = 'rgb(122,118,112)', INK = 'rgb(43,42,40)';
 // The Terminal app embeds a web terminal running as a local service.
-// ?theme=sand matches this desktop's palette; ?embed=1 hides the terminal's own window chrome
+// ?theme=lunix matches the embedded terminal palette; ?embed=1 hides the terminal's own window chrome
 // (title/status bars) so this window's frame is the only chrome — no nesting, no double status bar.
 // Runtime endpoints come from window.__LUNIX (injected by the server from its env via /config.js),
 // so pointing at a real Nodus / a real user id / a hosted terminal is config, not a code edit.
 const CFG = (typeof window !== 'undefined' && window.__LUNIX) || {};
-const TERMINAL_URL = CFG.terminalUrl || 'http://localhost:7777/?theme=sand&embed=1';
+const TERMINAL_URL = CFG.terminalUrl || 'http://localhost:7777/?theme=lunix&embed=1';
 
 // Files app sources ("mounts"). Each mount is a provider with the same list/read/write shape:
 //   • Workspace — the Nodus WorkspaceRuntime, via the Nodus SDK.
@@ -532,9 +532,10 @@ function renderBrowser(root) {
 }
 
 function renderTerminal(root) {
-  // Embed the terminal UI; when an Agent session exists, its PTY is the matching Nodus workspace.
+  // Keep the iframe fully covered until wterm has rendered the first real PTY frame.
   root.style.position = 'relative';
-  root.style.background = '#f7f5f0';
+  root.style.background = '#171a19';
+  root.replaceChildren();
   if (!agentSession) {
     root.innerHTML = '<div style="height:100%;display:grid;place-items:center;text-align:center;color:#6f685e;padding:24px;"><div><strong style="display:block;color:#24231f;margin-bottom:8px;">Connect the Agent first</strong><span style="font-size:13px;">Terminal opens inside the Agent session’s workspace runtime.</span></div></div>';
     return;
@@ -546,29 +547,36 @@ function renderTerminal(root) {
   terminalUrl.searchParams.set('userId', NODUS_USER);
   frame.src = terminalUrl;
   frame.setAttribute('title', 'Terminal');
-  frame.style.cssText = 'width:100%;height:100%;border:none;display:block;background:#f7f5f0;';
+  frame.style.cssText = 'width:100%;height:100%;border:none;display:block;background:#171a19;opacity:0;transition:opacity .16s ease;';
 
   const splash = document.createElement('div');
-  splash.style.cssText = 'position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#f7f5f0;color:#6f685e;font-size:13px;transition:opacity .4s;';
+  splash.style.cssText = 'position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:radial-gradient(circle at 50% 44%,#232825 0,#171a19 48%,#131514 100%);color:#9ca49f;font-size:13px;';
   splash.innerHTML = `
-    <div style="width:46px;height:46px;color:#17796d;">${I.terminal}</div>
-    <div style="font-weight:600;letter-spacing:.02em;">Starting Terminal…</div>
-    <div style="width:160px;height:3px;border-radius:3px;background:#e2dfd8;overflow:hidden;">
-      <div style="width:40%;height:100%;background:#17796d;border-radius:3px;animation:lxLoad 1s ease-in-out infinite;"></div>
+    <div style="width:42px;height:42px;color:#78b5a8;filter:drop-shadow(0 8px 18px rgba(68,139,124,.2));">${I.terminal}</div>
+    <div style="font-weight:550;letter-spacing:.025em;color:#d5dbd7;">Preparing workspace terminal</div>
+    <div style="width:132px;height:2px;border-radius:3px;background:#303532;overflow:hidden;">
+      <div style="width:38%;height:100%;background:#78b5a8;border-radius:3px;animation:lxLoad 1s ease-in-out infinite;"></div>
     </div>`;
   if (!document.getElementById('lx-load-kf')) {
     const st = document.createElement('style'); st.id = 'lx-load-kf';
     st.textContent = '@keyframes lxLoad{0%{transform:translateX(-100%)}100%{transform:translateX(350%)}}';
     document.head.appendChild(st);
   }
-  const done = () => { splash.style.opacity = '0'; setTimeout(() => splash.remove(), 400); };
-  frame.addEventListener('load', done);
-  // Fallback: if the terminal service isn't reachable, tell the user instead of spinning forever.
+  const done = () => { frame.style.opacity = '1'; setTimeout(() => splash.remove(), 170); setTimeout(() => frame.contentWindow?.focus(), 180); };
+  const onStatus = (event) => {
+    if (event.origin !== location.origin || event.source !== frame.contentWindow || event.data?.type !== 'lunix-terminal-status') return;
+    if (event.data.status === 'ready') { window.removeEventListener('message', onStatus); done(); return; }
+    if (event.data.status !== 'error') return;
+    const detail = event.data.code === 4403 ? 'This site is not allowed to connect to the runtime.' : (event.data.message || 'Terminal runtime disconnected.');
+    splash.innerHTML = `<div style="width:42px;height:42px;color:#d07c70;">${I.terminal}</div><div style="font-weight:600;color:#e5e8e6;">Terminal connection failed</div><div style="color:#aab0ac;font-size:12px;max-width:320px;text-align:center;">${escapeHtml(detail)}</div><button type="button" data-terminal-retry style="border:1px solid #414743;border-radius:8px;background:#252a27;color:#e5e8e6;padding:7px 13px;cursor:pointer;">Retry</button>`;
+    splash.querySelector('[data-terminal-retry]').onclick = () => { window.removeEventListener('message', onStatus); renderTerminal(root); };
+  };
+  window.addEventListener('message', onStatus);
+  cleanup.set('terminal', () => window.removeEventListener('message', onStatus));
   setTimeout(() => {
-    if (!splash.isConnected) return;
-    splash.querySelector('div:nth-child(2)').textContent = 'Terminal service not reachable on :7777';
-    splash.querySelector('div:nth-child(3)').outerHTML = '<div style="opacity:.6;font-size:12px;">Start the terminal service on port 7777, then reopen.</div>';
-  }, 6000);
+    if (!splash.isConnected || splash.querySelector('[data-terminal-retry]')) return;
+    splash.querySelector('div:nth-child(2)').textContent = 'Still connecting to workspace runtime…';
+  }, 12000);
 
   root.append(frame, splash);
 }

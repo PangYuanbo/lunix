@@ -36,7 +36,6 @@
       };
       ws.onmessage = async (e) => {
         const text = typeof e.data === 'string' ? e.data : new TextDecoder().decode(e.data);
-        window.parent.postMessage({ type: 'lunix-terminal-status', status: 'ready' }, location.origin);
         if (text[0] === '0') dataCbs.forEach((cb) => cb({ id, data: text.slice(1) }));
       };
       ws.onclose = (event) => {

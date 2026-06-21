@@ -34,7 +34,7 @@ async function createPane(tab) {
   el.className = 'terminal-pane';
   tab.el.appendChild(el);
 
-  const pane = { id, el, tab, term: null };
+  const pane = { id, el, tab, term: null, ready: false, painted: false, pending: [] };
   panes.set(id, pane);
   tab.panes.push(pane);
 
@@ -50,6 +50,8 @@ async function createPane(tab) {
   try {
     await window.warp.spawn(id, 80, 24);
     await term.init();
+    pane.ready = true;
+    for (const data of pane.pending.splice(0)) writePane(pane, data);
     window.warp.resize(id, term.cols, term.rows);
     focusPane(pane);
     setStatus('connected', 'ready');
@@ -111,7 +113,17 @@ function splitActive() {
   createPane(activeTab);
 }
 
-window.warp.onData(({ id, data }) => panes.get(id)?.term?.write(data));
+function writePane(pane, data) {
+  if (!pane.ready) { pane.pending.push(data); return; }
+  pane.term.write(data);
+  if (pane.painted) return;
+  pane.painted = true;
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    window.parent.postMessage({ type: 'lunix-terminal-status', status: 'ready' }, location.origin);
+  }));
+}
+
+window.warp.onData(({ id, data }) => { const pane = panes.get(id); if (pane) writePane(pane, data); });
 window.warp.onExit(({ id, exitCode }) => {
   const pane = panes.get(id);
   pane?.term?.write(`\r\n[process exited${exitCode == null ? '' : ` ${exitCode}`}]\r\n`);
