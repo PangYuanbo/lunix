@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 
 const root = path.resolve(import.meta.dirname, '..');
 const out = path.join(root, 'web-dist');
@@ -18,6 +19,7 @@ fs.writeFileSync(path.join(out, 'config.js'), `window.__LUNIX=${JSON.stringify({
   browserRelayUrl: process.env.BROWSER_RELAY_URL || 'wss://lunix-browser-relay.yuanbopang.workers.dev',
 })};\n`);
 const indexPath = path.join(out, 'index.html');
-fs.writeFileSync(indexPath, fs.readFileSync(indexPath, 'utf8').replace('./app.js', `./app.js?v=${Date.now()}`).replace('./nodus-sdk.js', `./nodus-sdk.js?v=${Date.now()}`));
-fs.writeFileSync(path.join(out, 'vercel.json'), JSON.stringify({ cleanUrls: true, trailingSlash: false }, null, 2));
+const version = crypto.createHash('sha256').update(fs.readFileSync(path.join(out, 'app.js'))).digest('hex').slice(0, 12);
+fs.writeFileSync(indexPath, fs.readFileSync(indexPath, 'utf8').replace('./app.js', `./app.js?v=${version}`).replace('./nodus-sdk.js', `./nodus-sdk.js?v=${version}`));
+fs.writeFileSync(path.join(out, 'vercel.json'), JSON.stringify({ cleanUrls: true, trailingSlash: false, headers: [{ source: '/', headers: [{ key: 'Cache-Control', value: 'no-store' }] }] }, null, 2));
 console.log(`web build → ${out}`);
