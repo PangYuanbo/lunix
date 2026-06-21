@@ -88,5 +88,5 @@ const server = http.createServer(async (req, res) => {
   });
 });
 
-server.listen(PORT, () => console.log(`Warp web → http://localhost:${PORT}`));
+server.listen(PORT, () => console.log(`terminal → http://localhost:${PORT}`));
 process.on('SIGINT', () => { for (const t of ptys.values()) t.kill(); process.exit(0); });
