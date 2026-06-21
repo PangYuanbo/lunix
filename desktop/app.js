@@ -669,7 +669,7 @@ const clearRuntimeSession = (provider) => writeCookie(runtimeCookie(provider), '
 let selectedAgentProvider = readCookie(PROVIDER_COOKIE) === 'codex' ? 'codex' : 'claude';
 let agentSession = readRuntimeSession(selectedAgentProvider);
 const agentProviderName = () => selectedAgentProvider === 'codex' ? 'Codex' : 'Claude';
-const AGENT_BROWSER_PROMPT = `\n\nLunix browser workflow:\n- For a web app preview, start the server on 5173, 3000, 4173, 8000, or 8080 and include its localhost URL in your response.\n- For a website the user should open in Lunix's built-in Browser, include exactly: LUNIX_BROWSER_OPEN https://example.com\n- Do not expose cookies or tokens, and do not claim a page works unless you checked it.`;
+const AGENT_BROWSER_PROMPT = `\n\nLunix browser workflow:\n- For a web app preview, start the server on 5173, 3000, 4173, 8000, or 8080, bind it to 0.0.0.0 (never 127.0.0.1), and include its localhost URL in your response.\n- For a website the user should open in Lunix's built-in Browser, include exactly: LUNIX_BROWSER_OPEN https://example.com\n- Do not expose cookies or tokens, and do not claim a page works unless you checked it.`;
 
 function renderAgent(root) {
   root.classList.remove('no-padding');

@@ -5,6 +5,7 @@ const sdk = fs.readFileSync(require.resolve('../nodus-sdk.js'), 'utf8');
 const skill = fs.readFileSync(require.resolve('../../.agents/skills/lunix-browser-workflow/SKILL.md'), 'utf8');
 
 assert.match(app, /LUNIX_BROWSER_OPEN/);
+assert.match(app, /bind it to 0\.0\.0\.0 \(never 127\.0\.0\.1\)/);
 assert.match(app, /openBrowserUrl\(browserMatch\[1\].*true\)/);
 assert.match(app, /text \+ AGENT_BROWSER_PROMPT/);
 assert.match(sdk, /diff: \(sessionId\)/);
