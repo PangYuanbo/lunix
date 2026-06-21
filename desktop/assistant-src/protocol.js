@@ -19,7 +19,7 @@ export function eventToUIMessage(event, index = 0) {
     case 'session_orphaned':
       return { id: eventId, role: 'system', parts: [{ type: 'data-status', data: { tone: 'warning', title: 'Session disconnected', detail: text(payload.reason || payload.note) } }] };
     case 'usage_snapshot':
-      return { id: eventId, role: 'system', parts: [{ type: 'data-usage', data: payload }] };
+      return { id: eventId, role: 'system', parts: [] };
     case 'agent_event':
       return agentEventUIMessage(payload);
     default:
@@ -64,7 +64,7 @@ export function agentEventUIMessage(event) {
     };
   }
   if (event.type === 'usage') {
-    return { id: `agent-${eventId}`, role: 'system', parts: [{ type: 'data-usage', data: event.usage || {} }] };
+    return { id: `agent-${eventId}`, role: 'system', parts: [] };
   }
   return { id: `agent-${eventId}`, role: 'system', parts: [{ type: 'data-event', data: { eventType: event.type || 'agent_event', payload: event } }] };
 }

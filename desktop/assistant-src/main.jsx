@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { AlertCircle, BarChart3, CheckCircle2, ExternalLink, Info, LoaderCircle, RotateCcw, Square } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ExternalLink, Info, LoaderCircle, RotateCcw, Square } from 'lucide-react';
 import { Conversation, ConversationContent, ConversationScrollButton } from './ai-elements/conversation';
 import { Message, MessageContent, MessageResponse } from './ai-elements/message';
 import { Reasoning, ReasoningContent, ReasoningTrigger } from './ai-elements/reasoning';
@@ -10,7 +10,6 @@ import './styles.css';
 
 function DataCard({ part }) {
   const data = part.data || {};
-  if (part.type === 'data-usage') return <div className="ai-data-card"><BarChart3 size={15} /><div><b>Usage</b><pre>{JSON.stringify(data, null, 2)}</pre></div></div>;
   if (part.type === 'data-event') return <details className="ai-data-card"><summary><Info size={15} />{data.eventType}</summary><pre>{JSON.stringify(data.payload, null, 2)}</pre></details>;
   const Icon = data.tone === 'success' ? CheckCircle2 : data.tone === 'warning' ? AlertCircle : data.tone === 'working' ? LoaderCircle : Info;
   return <div className={`ai-status-card tone-${data.tone || 'info'}`}><Icon size={15} className={data.tone === 'working' ? 'spin' : ''} /><div><b>{data.title}</b>{data.detail && <span>{data.detail}</span>}{data.actionLabel && <button onClick={data.onAction}><ExternalLink size={12} />{data.actionLabel}</button>}</div></div>;
@@ -78,7 +77,7 @@ window.LunixAssistant = {
       addUser: (id, value) => store.append(userUIMessage(id, value)),
       stream: (id, value, preview) => store.upsert(streamingUIMessage(id, value, preview)),
       finish: (id, value) => { store.remove(`stream-${id}`); store.upsert({ id, role: 'assistant', parts: [{ type: 'text', text: value }] }); },
-      agentEvent: (event) => store.upsert(agentEventUIMessage(event)),
+      agentEvent: (event) => { if (event.type !== 'usage') store.upsert(agentEventUIMessage(event)); },
       add: store.upsert,
       setBusy: store.setBusy,
       setLoading: store.setLoading,

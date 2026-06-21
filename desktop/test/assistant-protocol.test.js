@@ -11,12 +11,12 @@ const source = fs.readFileSync(require.resolve('../assistant-src/protocol.js'), 
     ['session_started', 'system', 'data-status'],
     ['session_resumed', 'system', 'data-status'],
     ['session_orphaned', 'system', 'data-status'],
-    ['usage_snapshot', 'system', 'data-usage'],
+    ['usage_snapshot', 'system', undefined],
   ];
   known.forEach(([eventType, role, partType], index) => {
     const message = protocol.eventToUIMessage({ id: index + 1, eventType, payload: { text: 'hello' } }, index);
     assert.equal(message.role, role);
-    assert.equal(message.parts[0].type, partType);
+    assert.equal(message.parts[0]?.type, partType);
   });
   const unknown = protocol.eventToUIMessage({ eventType: 'future_event', payload: { ok: true } });
   assert.equal(unknown.parts[0].type, 'data-event');
@@ -30,7 +30,7 @@ const source = fs.readFileSync(require.resolve('../assistant-src/protocol.js'), 
   const tool = protocol.agentEventUIMessage({ id: 't1', type: 'tool', name: 'Shell', state: 'output-available', input: { command: 'pwd' }, output: '/workspace' });
   assert.equal(tool.parts[0].type, 'dynamic-tool');
   assert.equal(tool.parts[0].output, '/workspace');
-  assert.equal(protocol.agentEventUIMessage({ id: 'u1', type: 'usage', usage: { input_tokens: 12 } }).parts[0].type, 'data-usage');
+  assert.equal(protocol.agentEventUIMessage({ id: 'u1', type: 'usage', usage: { input_tokens: 12 } }).parts.length, 0);
   const restoredTool = protocol.eventToUIMessage({ eventType: 'agent_event', payload: { id: 't2', type: 'tool', name: 'Bash', state: 'output-available', input: { command: 'pwd' }, output: '/workspace' } });
   assert.equal(restoredTool.id, 'agent-t2');
   assert.equal(restoredTool.parts[0].type, 'dynamic-tool');
