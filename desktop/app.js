@@ -43,13 +43,16 @@ const ACCENT = 'rgb(74,158,142)', MUTED = 'rgb(122,118,112)', INK = 'rgb(43,42,4
 // The Terminal app embeds a web terminal running as a local service.
 // ?theme=sand matches this desktop's palette; ?embed=1 hides the terminal's own window chrome
 // (title/status bars) so this window's frame is the only chrome — no nesting, no double status bar.
-const TERMINAL_URL = 'http://localhost:7777/?theme=sand&embed=1';
+// Runtime endpoints come from window.__LUNIX (injected by the server from its env via /config.js),
+// so pointing at a real Nodus / a real user id / a hosted terminal is config, not a code edit.
+const CFG = (typeof window !== 'undefined' && window.__LUNIX) || {};
+const TERMINAL_URL = CFG.terminalUrl || 'http://localhost:7777/?theme=sand&embed=1';
 
 // Files app sources ("mounts"). Each mount is a provider with the same list/read/write shape:
 //   • Workspace — the Nodus WorkspaceRuntime, via the Nodus SDK.
 //   • Local     — real folders on this machine, via lunix's own /api/local routes (home-sandboxed).
-const NODUS_URL = 'http://localhost:8787';
-const NODUS_USER = 'lunix-demo'; // swap for a real Nodus user id when provided
+const NODUS_URL = CFG.nodusUrl || 'http://localhost:8787';
+const NODUS_USER = CFG.nodusUser || 'lunix-demo'; // set NODUS_USER on the server for a real Nodus user id
 const nodusClient = (typeof Nodus !== 'undefined') ? Nodus({ baseUrl: NODUS_URL, userId: NODUS_USER }) : null;
 const localFs = {
   list: (p) => fetch('/api/local/files?path=' + encodeURIComponent(p || '/')).then((r) => r.json()),

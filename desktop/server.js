@@ -113,6 +113,18 @@ const server = http.createServer(async (req, res) => {
   const u = new URL(req.url, `http://localhost:${PORT}`);
   const p = u.pathname;
 
+  // Runtime config for the client, from this server's env. Point lunix at any Nodus / user / terminal
+  // without editing code:  NODUS_URL=... NODUS_USER=... TERMINAL_URL=... node server.js
+  if (p === '/config.js') {
+    const cfg = {
+      nodusUrl: process.env.NODUS_URL || 'http://localhost:8787',
+      nodusUser: process.env.NODUS_USER || 'lunix-demo',
+      terminalUrl: process.env.TERMINAL_URL || 'http://localhost:7777/?theme=sand&embed=1',
+    };
+    res.writeHead(200, { 'content-type': 'text/javascript', 'cache-control': 'no-store' });
+    return res.end(`window.__LUNIX = ${JSON.stringify(cfg)};`);
+  }
+
   if (p.startsWith('/api/browser/')) {
     if (!KEY || !PROJECT) return json(res, 500, { error: 'BROWSERBASE_API_KEY / BROWSERBASE_PROJECT_ID not configured' });
     try {
