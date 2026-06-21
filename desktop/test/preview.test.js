@@ -1,0 +1,10 @@
+const assert = require('assert');
+const fs = require('fs');
+const app = fs.readFileSync(require.resolve('../app.js'), 'utf8');
+const server = fs.readFileSync(require.resolve('../server.js'), 'utf8');
+assert.match(app, /e\.code !== 'Space'/);
+assert.match(app, /video src=.*controls autoplay/);
+assert.match(app, /ext === 'md'/);
+assert.match(server, /accept-ranges/);
+assert.match(server, /\/api\/local\/raw/);
+console.log('preview wiring ok');
