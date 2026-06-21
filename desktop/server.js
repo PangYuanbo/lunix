@@ -246,7 +246,7 @@ const server = http.createServer(async (req, res) => {
 
   // static files
   const fromPlanB = (req.headers.referer || '').includes('/plan-b');
-  const rel = p === '/' ? 'index.html' : /^\/cloud-browser\/?$/.test(p) ? 'cloud-browser/index.html' : /^\/plan-b\/?$/.test(p) ? 'cloud-browser/plan-b.html' : fromPlanB && /^\/(assets|media)\//.test(p) ? `cloud-browser${p}` : decodeURIComponent(p).replace(/^\/+/, '');
+  const rel = p === '/' ? 'index.html' : p === '/favicon.svg' ? 'cloud-browser/favicon.svg' : /^\/cloud-browser\/?$/.test(p) ? 'cloud-browser/index.html' : /^\/plan-b\/?$/.test(p) ? 'cloud-browser/plan-b.html' : fromPlanB && /^\/(assets|media)\//.test(p) ? `cloud-browser${p}` : decodeURIComponent(p).replace(/^\/+/, '');
   const file = path.join(ROOT, rel);
   if (!file.startsWith(ROOT)) { res.writeHead(403); return res.end('forbidden'); }
   fs.readFile(file, (err, buf) => {
