@@ -478,14 +478,48 @@ function renderAgent(root) {
   }
   const pushEvents = (events) => (events || []).forEach((e) => { const t = (e.payload || {}).text; if (e.eventType === 'assistant_message' && t) msgs.push({ role: 'assistant', text: t }); });
 
+  const KEY_STORE = 'lunix.anthropicKey';
+
+  // Auth gate: Claude Code needs an Anthropic key. Stored locally; used as the agent's auth bundle.
+  // With the modal runtime it authenticates a real Claude Code sandbox; with mock it just echoes.
+  function authCard(errMsg) {
+    booting = false; statusEl.textContent = 'not connected';
+    log.innerHTML = '';
+    const card = document.createElement('div');
+    card.style.cssText = 'margin:auto;max-width:340px;text-align:center;display:flex;flex-direction:column;gap:12px;';
+    card.innerHTML = `
+      <div style="width:34px;height:34px;color:#17796d;margin:0 auto;display:flex;">${I.agent}</div>
+      <div style="font-weight:600;color:#24231f;">Connect Claude Code</div>
+      <div style="font-size:12px;color:#9e9a93;line-height:1.5;">Paste your Anthropic API key to authenticate the agent runtime. Stored locally in this browser.</div>
+      <input data-key type="password" placeholder="sk-ant-…" style="border:1px solid #e2dfd8;border-radius:9px;padding:9px 12px;font-size:13px;outline:none;">
+      <button data-connect style="border:none;background:#17796d;color:#fff;border-radius:9px;padding:9px;font-size:13px;font-weight:600;cursor:pointer;">Connect</button>
+      <div data-err style="color:#b65347;font-size:12px;min-height:14px;">${errMsg ? escapeHtml(errMsg) : ''}</div>`;
+    log.appendChild(card);
+    const keyIn = card.querySelector('[data-key]'), err = card.querySelector('[data-err]');
+    const connect = async () => {
+      const key = keyIn.value.trim();
+      if (!key) { err.textContent = 'Enter an API key.'; return; }
+      localStorage.setItem(KEY_STORE, key); agentBoot = null; agentSession = null; await boot();
+    };
+    card.querySelector('[data-connect]').onclick = connect;
+    keyIn.addEventListener('keydown', (e) => { if (e.key === 'Enter') connect(); });
+    keyIn.focus();
+  }
+
   async function boot() {
-    if (!nodusClient) { statusEl.textContent = 'Nodus offline'; booting = false; msgs.push({ role: 'system', text: 'Agent runtime not reachable on :8787. Start Nodus to boot the brain.' }); return paintLog(); }
+    if (!nodusClient) { statusEl.textContent = 'runtime offline'; booting = false; msgs.length = 0; msgs.push({ role: 'system', text: 'Agent runtime not reachable on :8787. Start it (npm run dev).' }); return paintLog(); }
+    const key = localStorage.getItem(KEY_STORE);
+    if (!key) return authCard();
+    booting = true; statusEl.textContent = 'connecting…'; msgs.length = 0; paintLog();
     try {
-      if (!agentBoot) agentBoot = nodusClient.ensureSession({ provider: 'claude', apiKey: 'demo-key' });
+      if (!agentBoot) agentBoot = nodusClient.ensureSession({ provider: 'claude', apiKey: key });
       agentSession = await agentBoot;
       pushEvents((await nodusClient.sessions.events(agentSession.session.id)).events);
       statusEl.textContent = 'claude · live';
-    } catch (e) { agentBoot = null; statusEl.textContent = 'error'; msgs.push({ role: 'system', text: 'Could not boot agent: ' + (e.message || e) }); }
+    } catch (e) {
+      agentBoot = null; agentSession = null; localStorage.removeItem(KEY_STORE);
+      return authCard('Auth failed: ' + (e.message || e));
+    }
     booting = false; paintLog();
   }
   async function send() {
