@@ -1,6 +1,7 @@
 const API = 'https://api.browserbase.com/v1';
 const headers = () => ({ 'content-type': 'application/json', 'x-bb-api-key': process.env.BROWSERBASE_API_KEY });
 const json = (res, code, body) => res.status(code).json(body);
+const cookie = (req, name) => req.headers.cookie?.split(';').map((part) => part.trim().split('=')).find(([key]) => key === name)?.[1];
 async function bb(path, options = {}) {
   const response = await fetch(API + path, { ...options, headers: { ...headers(), ...(options.headers || {}) } });
   const body = await response.json().catch(() => ({}));
@@ -27,4 +28,4 @@ async function navigate(connectUrl, url) {
   await send('Page.navigate', { url }, attached.sessionId);
   ws.close();
 }
-module.exports = { bb, json, navigate };
+module.exports = { bb, cookie, json, navigate };

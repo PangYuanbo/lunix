@@ -121,6 +121,7 @@ async function startSession(width, height, initialUrl) {
 
 const readBody = (req) => new Promise((r) => { let d = ''; req.on('data', (c) => (d += c)); req.on('end', () => { try { r(d ? JSON.parse(d) : {}); } catch { r({}); } }); });
 const json = (res, code, obj) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(obj)); };
+const requestCookie = (req, name) => req.headers.cookie?.split(';').map((part) => part.trim().split('=')).find(([key]) => key === name)?.[1];
 const MIME = {
   '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json',
   '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
@@ -167,7 +168,12 @@ const server = http.createServer(async (req, res) => {
     try {
       if (p === '/api/browser/session') {                          // create + screencast
         const { width, height, url } = await readBody(req);
-        return json(res, 200, await startSession(width, height, url));
+        const savedId = requestCookie(req, 'lunix_browser_session');
+        const saved = savedId && sessions.get(savedId);
+        if (saved) return json(res, 200, { sessionId: savedId, home: '', width: saved.width, height: saved.height, reused: true });
+        const session = await startSession(width, height, url);
+        res.setHeader('Set-Cookie', `lunix_browser_session=${session.sessionId}; Path=/; Max-Age=1800; HttpOnly; SameSite=Lax`);
+        return json(res, 200, session);
       }
       if (p === '/api/browser/stream') {                           // live MJPEG: <img src> renders it natively
         const rec = sessions.get(u.searchParams.get('sessionId'));
@@ -205,6 +211,7 @@ const server = http.createServer(async (req, res) => {
         sessions.delete(sessionId);
         if (rec) { for (const s of rec.streams) try { s.end(); } catch {} try { rec.cdp.close(); } catch {} }
         await bb('POST', `/v1/sessions/${sessionId}`, { projectId: PROJECT, status: 'REQUEST_RELEASE' }).catch(() => {});
+        res.setHeader('Set-Cookie', 'lunix_browser_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax');
         return json(res, 200, { ok: true });
       }
     } catch (e) { return json(res, 500, { error: String((e && e.message) || e) }); }
