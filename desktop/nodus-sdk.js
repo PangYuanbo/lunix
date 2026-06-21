@@ -86,6 +86,10 @@
         terminalSocket: (sessionId) => new WebSocket(wsUrl(`/sessions/${enc(sessionId)}/terminal`)),
       },
 
+      browser: {
+        session: (sessionId, url) => req("POST", `/browser/${enc(sessionId)}`, { url }),
+      },
+
       // ---- workspace runtime: the real /workspace filesystem ----
       workspace: {
         list: (path) => req("GET", `/workspace/files?path=${enc(path || "/")}`),

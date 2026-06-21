@@ -593,7 +593,9 @@ function renderBrowser(root) {
 
   requestAnimationFrame(() => {
     const { width, height } = size();
-    post('/api/browser/session', { width, height, url: browserTargetUrl }).then((r) => r.json()).then((s) => {
+    const shared = agentSession?.session?.id;
+    const start = shared ? nodusClient.browser.session(shared, browserTargetUrl) : post('/api/browser/session', { width, height, url: browserTargetUrl }).then((r) => r.json());
+    start.then((s) => {
       if (s.error || !s.sessionId) { msg.textContent = s.error ? 'Browser unavailable: ' + s.error : 'Could not start a session.'; return; }
       sessionId = s.sessionId; urlIn.value = s.home || '';
       fit(s.width || width, s.height || height);
@@ -648,7 +650,7 @@ function renderBrowser(root) {
   cleanup.set('browser', () => { window.removeEventListener('lunix-browser-navigate', onNavigate); hosted?.close(); });
   urlIn.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') go(); }); // stopPropagation: don't forward to the page
   root.querySelector('[data-go]').onclick = go;
-  root.querySelector('[data-new-session]').onclick = async () => { if (sessionId) await post('/api/browser/release', { sessionId }); windows.get('browser')?.querySelector('.close').click(); browserTargetUrl = ''; openApp(GROUP_B.find((app) => app.id === 'browser')); };
+  root.querySelector('[data-new-session]').onclick = async () => { if (!agentSession?.session?.id && sessionId) await post('/api/browser/release', { sessionId }); windows.get('browser')?.querySelector('.close').click(); browserTargetUrl = ''; openApp(GROUP_B.find((app) => app.id === 'browser')); };
   root.querySelector('[data-reload]').onclick = () => { if (sessionId) hosted ? hosted.navigate(urlIn.value || 'https://www.google.com') : post('/api/browser/navigate', { sessionId, url: urlIn.value || 'https://www.google.com' }); };
   let rt; const ro = new ResizeObserver(() => { clearTimeout(rt); rt = setTimeout(() => { if (!sessionId) return; const { width, height } = size(); fit(width, height); hosted ? hosted.resize(width, height) : post('/api/browser/resize', { sessionId, width, height }); }, 250); });
   ro.observe(view);
