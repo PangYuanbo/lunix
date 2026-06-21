@@ -447,6 +447,7 @@ function renderBrowser(root) {
   let hosted = null;
 
   async function connectHosted(connectUrl, width, height) {
+    msg.textContent = 'Connecting to cloud browser…';
     const socketUrl = CFG.browserRelayUrl ? CFG.browserRelayUrl + '?url=' + encodeURIComponent(connectUrl) : connectUrl;
     const ws = new WebSocket(socketUrl); let requestId = 0; const pending = new Map();
     let pageSession = null, pageTarget = null, targets = [], viewport = { width, height };
@@ -476,7 +477,8 @@ function renderBrowser(root) {
         if (message.params.targetId === pageTarget) { pageTarget = null; activate(targets.at(-1)).catch(() => {}); }
       }
     };
-    await new Promise((resolve, reject) => { ws.onopen = resolve; ws.onerror = () => reject(new Error('Browser connection failed')); });
+    await new Promise((resolve, reject) => { const timer = setTimeout(() => reject(new Error('Browser relay timed out')), 12000); ws.onopen = () => { clearTimeout(timer); resolve(); }; ws.onerror = () => { clearTimeout(timer); reject(new Error('Browser relay failed')); }; });
+    msg.textContent = 'Attaching page…';
     const found = await send('Target.getTargets'); const page = (found.targetInfos || []).find((target) => target.type === 'page');
     await activate(page?.targetId); await send('Target.setDiscoverTargets', { discover: true });
     return {
@@ -587,10 +589,20 @@ function renderAgent(root) {
         <span data-status style="margin-left:auto;color:#9e9a93;">starting…</span>
       </div>
       <div data-log style="flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:12px;"></div>
-      <div style="padding:14px;border-top:1px solid #ece8df;">
-        <div style="display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #e2dfd8;border-radius:14px;padding:8px 12px;">
-          <input data-input placeholder="Message the agent…" style="flex:1;border:none;outline:none;background:transparent;font-size:14px;color:#24231f;">
-          <button data-send style="border:none;background:#17796d;color:#fff;border-radius:9px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;">Send</button>
+      <div style="padding:12px 14px;border-top:1px solid #ece8df;">
+        <div style="border:1px solid #e2dfd8;border-radius:14px;background:#fff;display:flex;flex-direction:column;overflow:hidden;">
+          <textarea data-input rows="1" placeholder="Describe a task, or type / for commands"
+            style="border:none;outline:none;resize:none;background:transparent;padding:12px 14px 4px;font-size:14px;line-height:1.5;color:#24231f;max-height:170px;font-family:inherit;"></textarea>
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 10px 8px;">
+            <button data-model style="display:inline-flex;align-items:center;gap:6px;border:1px solid #e2dfd8;background:#faf8f3;border-radius:8px;padding:4px 10px;font-size:12px;color:#6f685e;cursor:pointer;">
+              <span style="width:6px;height:6px;border-radius:50%;background:#17796d;flex:none;"></span><span data-model-name>Claude</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+            <span style="flex:1;"></span>
+            <button data-send title="Send (↵)" style="width:32px;height:32px;border:none;background:#17796d;color:#fff;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex:none;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+            </button>
+          </div>
         </div>
       </div>
     </div>`;
