@@ -15,6 +15,7 @@ Private monorepo for the lunix web desktop and its embedded terminal.
 npm install               # installs both workspaces (rebuilds node-pty for the terminal)
 npm run desktop           # web desktop → http://localhost:8090
 npm run terminal:web      # embedded terminal service → http://localhost:7777
+npm run build:web         # static deploy bundle → web-dist/
 ```
 
 Open the desktop and the Terminal app loads the terminal web build (`?theme=sand&embed=1`).

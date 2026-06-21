@@ -90,10 +90,38 @@ let previewTarget = null;
 let browserTargetUrl = '';
 
 function openBrowserUrl(url) {
-  browserTargetUrl = url;
-  openApp(GROUP_B.find((app) => app.id === 'browser'));
-  window.dispatchEvent(new CustomEvent('lunix-browser-navigate', { detail: url }));
+  document.querySelector('[data-browser-choice]')?.remove();
+  const overlay = document.createElement('div');
+  overlay.dataset.browserChoice = '';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:3000;background:rgba(36,35,31,.28);display:grid;place-items:center;padding:20px;';
+  overlay.innerHTML = `<div role="dialog" aria-modal="true" aria-labelledby="browser-choice-title" style="width:min(380px,100%);background:#faf8f3;border:1px solid #e2dfd8;border-radius:14px;padding:20px;box-shadow:0 20px 60px rgba(36,35,31,.2);display:flex;flex-direction:column;gap:14px;">
+    <div id="browser-choice-title" style="font-weight:600;color:#24231f;">打开网址</div>
+    <div data-choice-url style="font-size:12px;color:#7d776e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button data-external style="border:1px solid #d8d4cb;background:#fff;color:#24231f;border-radius:9px;padding:9px 13px;font-size:13px;cursor:pointer;">外置浏览器</button>
+      <button data-internal style="border:none;background:#17796d;color:#fff;border-radius:9px;padding:9px 13px;font-size:13px;font-weight:600;cursor:pointer;">内置浏览器</button>
+    </div>
+  </div>`;
+  overlay.querySelector('[data-choice-url]').textContent = url;
+  const close = () => overlay.remove();
+  overlay.onclick = (e) => { if (e.target === overlay) close(); };
+  overlay.onkeydown = (e) => { if (e.key === 'Escape') close(); };
+  overlay.querySelector('[data-external]').onclick = () => { window.open(url, '_blank', 'noopener,noreferrer'); close(); };
+  overlay.querySelector('[data-internal]').onclick = () => {
+    browserTargetUrl = url;
+    openApp(GROUP_B.find((app) => app.id === 'browser'));
+    window.dispatchEvent(new CustomEvent('lunix-browser-navigate', { detail: url }));
+    close();
+  };
+  document.body.appendChild(overlay);
+  overlay.querySelector('[data-internal]').focus();
 }
+
+document.addEventListener('click', (e) => {
+  const link = e.target.closest?.('a[href]');
+  if (!link || !/^https?:\/\//i.test(link.href)) return;
+  e.preventDefault(); openBrowserUrl(link.href);
+});
 
 // ---- dock ----
 function buildDock() {
@@ -454,11 +482,19 @@ function renderBrowser(root) {
 }
 
 function renderTerminal(root) {
-  // Embed the web terminal (a local service) and show a brief launch splash while it boots.
+  // Embed the terminal UI; when an Agent session exists, its PTY is the matching Nodus workspace.
   root.style.position = 'relative';
   root.style.background = '#f7f5f0';
+  if (!agentSession) {
+    root.innerHTML = '<div style="height:100%;display:grid;place-items:center;text-align:center;color:#6f685e;padding:24px;"><div><strong style="display:block;color:#24231f;margin-bottom:8px;">Connect the Agent first</strong><span style="font-size:13px;">Terminal opens inside the Agent session’s workspace runtime.</span></div></div>';
+    return;
+  }
   const frame = document.createElement('iframe');
-  frame.src = TERMINAL_URL;
+  const terminalUrl = new URL(TERMINAL_URL, location.href);
+  terminalUrl.searchParams.set('sessionId', agentSession.session.id);
+  terminalUrl.searchParams.set('nodusUrl', NODUS_URL);
+  terminalUrl.searchParams.set('userId', NODUS_USER);
+  frame.src = terminalUrl;
   frame.setAttribute('title', 'Terminal');
   frame.style.cssText = 'width:100%;height:100%;border:none;display:block;background:#f7f5f0;';
 
@@ -553,7 +589,7 @@ function renderAgent(root) {
     card.innerHTML = `
       <div style="width:34px;height:34px;color:#17796d;margin:0 auto;display:flex;">${I.agent}</div>
       <div style="font-weight:600;color:#24231f;">Connect Claude Code</div>
-      <div style="font-size:12px;color:#9e9a93;line-height:1.5;">Sign in with your Claude subscription in the Browser app. No API key is stored in lunix.</div>
+      <div style="font-size:12px;color:#9e9a93;line-height:1.5;">Sign in with your Claude subscription using the built-in or external browser. No API key is stored in lunix.</div>
       <button data-connect style="border:none;background:#17796d;color:#fff;border-radius:9px;padding:9px;font-size:13px;font-weight:600;cursor:pointer;">Sign in with Claude</button>
       <div data-err style="color:#b65347;font-size:12px;min-height:14px;">${errMsg ? escapeHtml(errMsg) : ''}</div>`;
     log.appendChild(card);
@@ -572,19 +608,23 @@ function renderAgent(root) {
   function showAuthCode(agentId, authSession) {
     statusEl.textContent = 'waiting for login'; log.innerHTML = '';
     const card = document.createElement('div'); card.style.cssText = 'margin:auto;max-width:360px;text-align:center;display:flex;flex-direction:column;gap:12px;';
-    card.innerHTML = `<div style="font-weight:600;color:#24231f;">Finish signing in</div><div style="font-size:12px;color:#9e9a93;line-height:1.5;">The Browser app opened Claude’s real login page. After login, paste the authorization code here.</div><button data-open style="border:1px solid #e2dfd8;background:#fff;border-radius:9px;padding:8px;font-size:13px;cursor:pointer;">Open login in Browser</button><input data-code placeholder="Paste authorization code" autocomplete="off" style="border:1px solid #e2dfd8;border-radius:9px;padding:9px 12px;font-size:13px;outline:none;"><button data-finish style="border:none;background:#17796d;color:#fff;border-radius:9px;padding:9px;font-size:13px;font-weight:600;cursor:pointer;">Finish login</button><div data-err style="color:#b65347;font-size:12px;min-height:14px;"></div>`;
+    card.innerHTML = `<div style="font-weight:600;color:#24231f;">Finish signing in</div><div style="font-size:12px;color:#9e9a93;line-height:1.5;">Choose the built-in or external browser for Claude’s real login page. After login, paste the authorization code here.</div><button data-open style="border:1px solid #e2dfd8;background:#fff;border-radius:9px;padding:8px;font-size:13px;cursor:pointer;">Open login</button><input data-code placeholder="Paste authorization code" autocomplete="off" style="border:1px solid #e2dfd8;border-radius:9px;padding:9px 12px;font-size:13px;outline:none;"><button data-finish style="border:none;background:#17796d;color:#fff;border-radius:9px;padding:9px;font-size:13px;font-weight:600;cursor:pointer;">Finish login</button><div data-err style="color:#b65347;font-size:12px;min-height:14px;"></div>`;
     log.appendChild(card);
     const code = card.querySelector('[data-code]'), finish = card.querySelector('[data-finish]'), err = card.querySelector('[data-err]');
     const open = () => openBrowserUrl(authSession.authUrl); card.querySelector('[data-open]').onclick = open; open();
     const complete = async () => {
       if (!code.value.trim()) { err.textContent = 'Paste the authorization code.'; return; }
-      finish.disabled = true; finish.textContent = 'Connecting…'; err.textContent = '';
+      finish.disabled = true; finish.textContent = 'Verifying login…'; err.textContent = '';
+      const startedAt = Date.now();
+      const timer = setInterval(() => { finish.textContent = `Verifying login… ${Math.floor((Date.now() - startedAt) / 1000)}s`; }, 1000);
       try {
         let result = await nodusClient.agents.completeAuth(agentId, authSession.id, { providerCode: code.value.trim() });
-        for (let i = 0; result.status === 'completing' && i < 80; i++) { await new Promise((r) => setTimeout(r, 3000)); result = await nodusClient.agents.completeAuth(agentId, authSession.id, { providerCode: code.value.trim() }); }
+        const deadline = Date.now() + 4 * 60 * 1000;
+        while (result.status === 'completing' && Date.now() < deadline) result = await nodusClient.agents.completeAuth(agentId, authSession.id, { providerCode: code.value.trim() });
         if (result.status !== 'healthy') throw new Error('Login timed out. Please start again.');
+        clearInterval(timer); finish.textContent = 'Starting Agent…';
         const session = await nodusClient.sessions.start(agentId); agentSession = { agentId, session: session.session }; booting = false; statusEl.textContent = 'claude · live'; msgs.length = 0; paintLog();
-      } catch (e) { finish.disabled = false; finish.textContent = 'Finish login'; err.textContent = e.message || e; }
+      } catch (e) { clearInterval(timer); finish.disabled = false; finish.textContent = 'Finish login'; err.textContent = e.message || e; }
     };
     finish.onclick = complete; code.addEventListener('keydown', (e) => { if (e.key === 'Enter') complete(); }); code.focus();
   }
