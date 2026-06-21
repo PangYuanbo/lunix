@@ -1,0 +1,26 @@
+{
+  "name": "@lunix/terminal",
+  "version": "0.1.0",
+  "description": "Block-based terminal — Electron app + embeddable web build",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "web": "electron web-server.js",
+    "rebuild": "electron-rebuild -f -w node-pty",
+    "postinstall": "electron-rebuild -f -w node-pty",
+    "test:crates": "node test/crates.test.js",
+    "test:unit": "for f in test/*.test.js; do echo \"-- $f\"; node \"$f\" || exit 1; done",
+    "test": "npm run test:unit",
+    "test:live": "node test/smoke.js",
+    "bench:render": "node bench/render_pipeline.js",
+    "bench:live": "node bench/live_pipeline.js"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@electron/rebuild": "^3.6.0",
+    "electron": "^31.0.0"
+  },
+  "dependencies": {
+    "node-pty": "^1.0.0"
+  }
+}

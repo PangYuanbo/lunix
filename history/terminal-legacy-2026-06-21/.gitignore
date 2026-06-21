@@ -1,0 +1,4 @@
+# Shell-integration runtime files (history/completion dumps) — never commit (privacy)
+shell-integration/.zsh_history
+shell-integration/.zcompdump*
+node_modules/

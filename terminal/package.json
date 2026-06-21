@@ -1,19 +1,16 @@
 {
   "name": "@lunix/terminal",
   "version": "0.1.0",
-  "description": "Block-based terminal — Electron app + embeddable web build",
+  "description": "wterm-based terminal — Electron app + embeddable web build",
   "main": "main.js",
   "scripts": {
-    "start": "electron .",
-    "web": "electron web-server.js",
+    "prepare:pty": "node scripts/fix-node-pty.cjs",
+    "build": "vite build --config vite.config.mjs",
+    "start": "npm run prepare:pty && npm run build && electron .",
+    "web": "npm run prepare:pty && npm run build && node web-server.js",
     "rebuild": "electron-rebuild -f -w node-pty",
-    "postinstall": "electron-rebuild -f -w node-pty",
-    "test:crates": "node test/crates.test.js",
-    "test:unit": "for f in test/*.test.js; do echo \"-- $f\"; node \"$f\" || exit 1; done",
-    "test": "npm run test:unit",
-    "test:live": "node test/smoke.js",
-    "bench:render": "node bench/render_pipeline.js",
-    "bench:live": "node bench/live_pipeline.js"
+    "postinstall": "electron-rebuild -f -w node-pty && node scripts/fix-node-pty.cjs",
+    "test": "node test/nodus_terminal_bridge.test.js"
   },
   "license": "MIT",
   "devDependencies": {
@@ -21,6 +18,7 @@
     "electron": "^31.0.0"
   },
   "dependencies": {
+    "@wterm/dom": "^0.3.0",
     "node-pty": "^1.0.0"
   }
 }
