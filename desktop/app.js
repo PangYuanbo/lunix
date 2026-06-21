@@ -793,7 +793,7 @@ function renderAgent(root) {
       let frame; try { frame = JSON.parse(event.data); } catch { return; }
       lastServerFrameAt = Date.now();
       if (frame.type === 'ready') { clearTimeout(chatReadyTimer); chatReadyTimer = null; socketReady = true; statusEl.textContent = `${selectedAgentProvider} · live`; hideLoading(); return; }
-      if (frame.type === 'status') { mountAssistant().setBusy(Boolean(frame.busy)); if (frame.busy) lockComposer(true, true); return; }
+      if (frame.type === 'status') { mountAssistant().setBusy(Boolean(frame.busy)); if (frame.busy) lockComposer(true, true); else if (sending) finishTurn(); return; }
       if (frame.type === 'delta') {
         if (aborted || frame.preview) return;
         lastProgressAt = Date.now();

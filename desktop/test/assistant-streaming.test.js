@@ -38,6 +38,7 @@ assert.match(app, /nodusClient\.sessions\.pause\(agentSession\.session\.id\)/);
 assert.match(app, /statusEl\.textContent = 'stop failed'/);
 assert.match(app, /title: 'Could not stop the agent'/);
 assert.match(app, /reconnectAttempts < 1/);
+assert.match(app, /else if \(sending\) finishTurn\(\)/);
 assert.match(app, /sendBtn\.onclick = \(\) => \{ if \(sending\) stopTask\(\)/);
 assert.doesNotMatch(app, /function bubble\(/);
 assert.doesNotMatch(app, /function paintLog\(/);
