@@ -1,0 +1,12 @@
+const assert = require('assert');
+const fs = require('fs');
+const app = fs.readFileSync(require.resolve('../app.js'), 'utf8');
+const server = fs.readFileSync(require.resolve('../server.js'), 'utf8');
+assert.match(app, /authMethod: 'subscription'/);
+assert.match(app, /openBrowserUrl\(authSession\.authUrl\)/);
+assert.match(app, /providerCode: code\.value\.trim\(\)/);
+assert.match(app, /sessions\.preview\(agentSession\.session\.id/);
+assert.match(app, /localhost\|127/);
+assert.doesNotMatch(app, /lunix\.anthropicKey|sk-ant-/);
+assert.match(server, /startSession\(width, height, initialUrl\)/);
+console.log('browser auth wiring ok');

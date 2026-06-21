@@ -75,8 +75,9 @@ function writeFrame(res, buf) {
   try { res.write(`--frame\r\nContent-Type: image/jpeg\r\nContent-Length: ${buf.length}\r\n\r\n`); res.write(buf); res.write('\r\n'); } catch {}
 }
 
-async function startSession(width, height) {
+async function startSession(width, height, initialUrl) {
   const w = clamp(width, 360, 1600), h = clamp(height, 260, 1200);
+  const home = /^https?:\/\//i.test(initialUrl || '') ? initialUrl : HOME_URL;
   const s = await bb('POST', '/v1/sessions', { projectId: PROJECT, keepAlive: true, timeout: Number(process.env.BROWSER_TIMEOUT) || 1800 });
   if (!s.id) throw new Error('session create failed');
   const dbg = await bb('GET', `/v1/sessions/${s.id}/debug`);
@@ -100,14 +101,37 @@ async function startSession(width, height) {
   // Start the screencast on the stable about:blank, THEN navigate — startScreencast fails if issued
   // while the page is mid-navigation; once running it persists across the navigation.
   await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 60, maxWidth: w, maxHeight: h, everyNthFrame: 1 }, ps);
-  cdp.send('Page.navigate', { url: HOME_URL }, ps).catch(() => {});
+  cdp.send('Page.navigate', { url: home }, ps).catch(() => {});
   sessions.set(s.id, rec);
-  return { sessionId: s.id, home: HOME_URL, width: w, height: h };
+  return { sessionId: s.id, home, width: w, height: h };
 }
 
 const readBody = (req) => new Promise((r) => { let d = ''; req.on('data', (c) => (d += c)); req.on('end', () => { try { r(d ? JSON.parse(d) : {}); } catch { r({}); } }); });
 const json = (res, code, obj) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(obj)); };
-const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png' };
+const MIME = {
+  '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json',
+  '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif', '.webp': 'image/webp', '.avif': 'image/avif', '.pdf': 'application/pdf',
+  '.mp4': 'video/mp4', '.webm': 'video/webm', '.mov': 'video/quicktime', '.mp3': 'audio/mpeg',
+  '.wav': 'audio/wav', '.m4a': 'audio/mp4', '.txt': 'text/plain; charset=utf-8',
+  '.md': 'text/markdown; charset=utf-8', '.csv': 'text/csv; charset=utf-8',
+};
+
+function streamFile(req, res, file) {
+  const size = fs.statSync(file).size;
+  const type = MIME[path.extname(file).toLowerCase()] || 'application/octet-stream';
+  const range = req.headers.range && req.headers.range.match(/^bytes=(\d*)-(\d*)$/);
+  if (!range) {
+    res.writeHead(200, { 'content-type': type, 'content-length': size, 'accept-ranges': 'bytes' });
+    return fs.createReadStream(file).pipe(res);
+  }
+  const suffix = !range[1] && range[2];
+  const start = suffix ? Math.max(0, size - Number(range[2])) : Number(range[1] || 0);
+  const end = suffix ? size - 1 : Math.min(Number(range[2] || size - 1), size - 1);
+  if (start > end || start >= size) { res.writeHead(416, { 'content-range': `bytes */${size}` }); return res.end(); }
+  res.writeHead(206, { 'content-type': type, 'content-length': end - start + 1, 'content-range': `bytes ${start}-${end}/${size}`, 'accept-ranges': 'bytes' });
+  fs.createReadStream(file, { start, end }).pipe(res);
+}
 
 const server = http.createServer(async (req, res) => {
   const u = new URL(req.url, `http://localhost:${PORT}`);
@@ -129,8 +153,8 @@ const server = http.createServer(async (req, res) => {
     if (!KEY || !PROJECT) return json(res, 500, { error: 'BROWSERBASE_API_KEY / BROWSERBASE_PROJECT_ID not configured' });
     try {
       if (p === '/api/browser/session') {                          // create + screencast
-        const { width, height } = await readBody(req);
-        return json(res, 200, await startSession(width, height));
+        const { width, height, url } = await readBody(req);
+        return json(res, 200, await startSession(width, height, url));
       }
       if (p === '/api/browser/stream') {                           // live MJPEG: <img src> renders it natively
         const rec = sessions.get(u.searchParams.get('sessionId'));
@@ -192,6 +216,11 @@ const server = http.createServer(async (req, res) => {
         const content = buf.length > 1_000_000 ? `(file too large to preview: ${buf.length} bytes)` : buf.toString('utf8');
         return json(res, 200, { path: qp, size: buf.length, content });
       }
+      if (p === '/api/local/raw' && req.method === 'GET') {
+        const qp = u.searchParams.get('path');
+        if (!qp) return json(res, 400, { error: 'path required' });
+        return streamFile(req, res, localResolve(qp));
+      }
       if (p === '/api/local/file' && req.method === 'POST') {
         const b = await readBody(req);
         if (!b.path) return json(res, 400, { error: 'path required' });
@@ -203,7 +232,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   // static files
-  const rel = p === '/' ? 'index.html' : decodeURIComponent(p).replace(/^\/+/, '');
+  const rel = p === '/' ? 'index.html' : /^\/cloud-browser\/?$/.test(p) ? 'cloud-browser/index.html' : decodeURIComponent(p).replace(/^\/+/, '');
   const file = path.join(ROOT, rel);
   if (!file.startsWith(ROOT)) { res.writeHead(403); return res.end('forbidden'); }
   fs.readFile(file, (err, buf) => {

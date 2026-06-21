@@ -86,6 +86,14 @@ const dockEl = document.getElementById('dock');
 let zTop = 100;
 const windows = new Map(); // id -> element
 const cleanup = new Map(); // app id -> fn to run when its window closes (e.g. release a browser session)
+let previewTarget = null;
+let browserTargetUrl = '';
+
+function openBrowserUrl(url) {
+  browserTargetUrl = url;
+  openApp(GROUP_B.find((app) => app.id === 'browser'));
+  window.dispatchEvent(new CustomEvent('lunix-browser-navigate', { detail: url }));
+}
 
 // ---- dock ----
 function buildDock() {
@@ -119,8 +127,8 @@ function openApp(app) {
   const w = document.createElement('section');
   w.className = 'lunix-desktop-window active';
   w.setAttribute('aria-label', app.label);
-  const width = app.id === 'browser' ? 1040 : app.id === 'files' ? 840 : app.id === 'terminal' ? 900 : app.id === 'memo' ? 760 : 620;
-  const height = app.id === 'browser' ? 720 : app.id === 'files' ? 560 : app.id === 'terminal' ? 600 : 480;
+  const width = app.id === 'browser' ? 1040 : app.id === 'preview' ? 900 : app.id === 'files' ? 840 : app.id === 'terminal' ? 900 : app.id === 'memo' ? 760 : 620;
+  const height = app.id === 'browser' ? 720 : app.id === 'preview' ? 650 : app.id === 'files' ? 560 : app.id === 'terminal' ? 600 : 480;
   w.style.cssText = `left:${120 + idx * 34}px;top:${64 + idx * 30}px;width:${width}px;height:${height}px;z-index:${++zTop};`;
 
   const titleIcon = app.icon || I.doc;
@@ -196,6 +204,7 @@ function makeResizable(win, handle) {
 // ---- app content renderers ----
 function renderApp(id, root) {
   if (id === 'browser') return renderBrowser(root);
+  if (id === 'preview') return renderPreview(root);
   if (id === 'files') return renderFiles(root);
   if (id === 'terminal') return renderTerminal(root);
   if (id === 'memo') return renderMemo(root);
@@ -213,7 +222,7 @@ function renderFiles(root) {
   const app = document.createElement('div');
   app.className = 'lunix-files-app';
   app.style.setProperty('--lunix-files-grid-template', '220px 7px minmax(200px, 1fr) 7px 320px');
-  let mountId = MOUNTS[0].id, cwd = '/', entries = [], activeFile = null, content = '', dirty = false, status = '', error = '';
+  let mountId = MOUNTS[0].id, cwd = '/', entries = [], activeFile = null, content = '', editing = false, dirty = false, status = '', error = '';
   const prov = () => MOUNTS.find((m) => m.id === mountId).provider();
   const parent = (p) => { const x = p.replace(/\/+$/, '').split('/'); x.pop(); return x.join('/') || '/'; };
 
@@ -223,7 +232,7 @@ function renderFiles(root) {
     try { const r = await p.list(path); entries = r.entries || []; cwd = r.path || path; }
     catch (e) { error = String(e.message || e); entries = []; }
   }
-  async function openFile(path) { const r = await prov().read(path); activeFile = path; content = r.content != null ? r.content : '(' + (r.error || 'unreadable') + ')'; dirty = false; status = ''; }
+  async function openFile(path) { const r = await prov().read(path); content = r.content != null ? r.content : '(' + (r.error || 'unreadable') + ')'; editing = true; dirty = false; status = ''; paint(); }
   async function save() {
     if (!activeFile) return;
     status = 'Saving…'; paint();
@@ -232,8 +241,8 @@ function renderFiles(root) {
     paint();
     if (status === 'Saved ✓') setTimeout(() => { status = ''; paint(); }, 1400);
   }
-  async function go(path) { activeFile = null; await listDir(path); paint(); }
-  async function switchMount(id) { if (id === mountId) return; mountId = id; cwd = '/'; activeFile = null; content = ''; await listDir('/'); paint(); }
+  async function go(path) { activeFile = null; previewTarget = null; await listDir(path); paint(); }
+  async function switchMount(id) { if (id === mountId) return; mountId = id; cwd = '/'; activeFile = null; previewTarget = null; content = ''; await listDir('/'); paint(); }
 
   function paint() {
     app.innerHTML = '';
@@ -273,13 +282,15 @@ function renderFiles(root) {
       const row = document.createElement('button'); row.type = 'button';
       row.className = 'lunix-files-file' + (f.path === activeFile ? ' selected' : '');
       row.innerHTML = `<span class="lunix-file-row-icon">${I.doc}</span><span class="lunix-file-row-main"><span class="lunix-file-row-title">${f.name}</span><span class="lunix-file-row-meta">file</span></span>`;
-      row.onclick = async () => { await openFile(f.path); paint(); };
+      row.onclick = () => { activeFile = f.path; content = ''; editing = false; dirty = false; previewTarget = { mountId, path: f.path, name: f.name }; paint(); const win = windows.get('preview'); if (win) renderPreview(win.querySelector('.lunix-window-content')); };
+      row.ondblclick = () => openFile(f.path);
       list.appendChild(row);
     });
     const r2 = document.createElement('span'); r2.className = 'lunix-files-column-resizer';
     // right — editable preview + Save
     const prev = document.createElement('aside'); prev.className = 'lunix-files-preview';
     if (!activeFile) { prev.innerHTML = '<div class="lunix-finder-empty">Select a file.</div>'; }
+    else if (!editing) { prev.innerHTML = '<div class="lunix-finder-empty">Press Space to preview.<br><small>Double-click to edit text.</small></div>'; }
     else {
       prev.style.cssText = 'display:flex;flex-direction:column;';
       const bar = document.createElement('div');
@@ -302,6 +313,46 @@ function renderFiles(root) {
   listDir('/').then(paint);
   root.appendChild(app);
 }
+
+function renderPreview(root) {
+  root.style.background = '#171717';
+  root.innerHTML = '';
+  if (!previewTarget) { root.innerHTML = '<div class="lunix-finder-empty" style="height:100%;display:grid;place-items:center;color:#aaa;">Select a file in Files, then press Space.</div>'; return; }
+  const { mountId, path: filePath, name } = previewTarget;
+  const ext = (name.split('.').pop() || '').toLowerCase();
+  const url = mountId === 'local' ? '/api/local/raw?path=' + encodeURIComponent(filePath) : null;
+  const center = 'width:100%;height:100%;border:0;display:block;object-fit:contain;background:#171717;';
+  const textExt = ['txt', 'csv', 'json', 'js', 'mjs', 'cjs', 'ts', 'tsx', 'jsx', 'css', 'html', 'xml', 'yml', 'yaml', 'toml', 'ini', 'sh', 'py', 'rb', 'go', 'rs', 'java', 'c', 'h', 'cpp', 'hpp', 'sql', 'log'];
+  if (!url) {
+    if (ext === 'md' || textExt.includes(ext)) MOUNTS.find((m) => m.id === mountId).provider().read(filePath).then((r) => showText(root, r.content || '', ext === 'md'));
+    else root.innerHTML = '<div class="lunix-finder-empty" style="height:100%;display:grid;place-items:center;color:#aaa;">This source needs a binary streaming endpoint to preview this file.</div>';
+    return;
+  }
+  if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'svg'].includes(ext)) root.innerHTML = `<img src="${url}" alt="${escapeHtml(name)}" style="${center}">`;
+  else if (['mp4', 'webm', 'mov'].includes(ext)) root.innerHTML = `<video src="${url}" controls autoplay style="${center}"></video>`;
+  else if (['mp3', 'wav', 'm4a'].includes(ext)) root.innerHTML = `<div style="height:100%;display:grid;place-items:center;"><audio src="${url}" controls autoplay></audio></div>`;
+  else if (ext === 'md' || textExt.includes(ext)) fetch(url).then((r) => r.text()).then((text) => showText(root, text, ext === 'md'));
+  else if (ext === 'pdf') root.innerHTML = `<iframe src="${url}" title="${escapeHtml(name)}" style="${center};background:white;"></iframe>`;
+  else root.innerHTML = '<div class="lunix-finder-empty" style="height:100%;display:grid;place-items:center;color:#aaa;">No safe browser preview for this file type.</div>';
+}
+
+function showText(root, text, markdown) { root.innerHTML = markdown ? `<article class="lunix-preview-markdown">${markdownHtml(text)}</article>` : `<pre class="lunix-preview-text">${escapeHtml(text)}</pre>`; }
+
+function markdownHtml(text) {
+  const inline = (s) => escapeHtml(s).replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').replace(/\[([^\]]+)\]\((https?:\/\/[^ )]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>');
+  return text.split(/\r?\n/).map((line) => {
+    const h = line.match(/^(#{1,6})\s+(.+)/); if (h) return `<h${h[1].length}>${inline(h[2])}</h${h[1].length}>`;
+    if (/^[-*]\s+/.test(line)) return `<li>${inline(line.replace(/^[-*]\s+/, ''))}</li>`;
+    return line ? `<p>${inline(line)}</p>` : '';
+  }).join('');
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.code !== 'Space' || e.repeat || /^(INPUT|TEXTAREA)$/.test(e.target.tagName) || e.target.isContentEditable || !previewTarget) return;
+  e.preventDefault();
+  if (windows.has('preview')) windows.get('preview').querySelector('.close').click();
+  else openApp(GROUP_B.find((app) => app.id === 'preview'));
+});
 
 function renderMemo(root) {
   const notes = FS.Desktop.filter((f) => f.kind === 'text');
@@ -368,11 +419,10 @@ function renderBrowser(root) {
 
   requestAnimationFrame(() => {
     const { width, height } = size();
-    post('/api/browser/session', { width, height }).then((r) => r.json()).then((s) => {
+    post('/api/browser/session', { width, height, url: browserTargetUrl }).then((r) => r.json()).then((s) => {
       if (s.error || !s.sessionId) { msg.textContent = s.error ? 'Browser unavailable: ' + s.error : 'Could not start a session.'; return; }
       sessionId = s.sessionId; urlIn.value = s.home || '';
       fit(s.width || width, s.height || height);
-      cleanup.set('browser', () => { const b = JSON.stringify({ sessionId }); if (navigator.sendBeacon) navigator.sendBeacon('/api/browser/release', new Blob([b], { type: 'application/json' })); else post('/api/browser/release', { sessionId }); });
       frame.addEventListener('load', () => { if (splash.isConnected) { splash.style.opacity = '0'; setTimeout(() => splash.remove(), 400); } }, { once: true });
       frame.src = '/api/browser/stream?sessionId=' + encodeURIComponent(sessionId);
     }).catch((e) => { msg.textContent = 'Browser unavailable: ' + e.message; });
@@ -392,6 +442,10 @@ function renderBrowser(root) {
 
   // ---- address bar + reload + resize ----
   const go = () => { const url = urlIn.value.trim(); if (url && sessionId) post('/api/browser/navigate', { sessionId, url }); view.focus(); };
+  const navigate = (url) => { if (!url) return; urlIn.value = url; if (sessionId) post('/api/browser/navigate', { sessionId, url }); };
+  const onNavigate = (e) => navigate(e.detail);
+  window.addEventListener('lunix-browser-navigate', onNavigate);
+  cleanup.set('browser', () => { window.removeEventListener('lunix-browser-navigate', onNavigate); if (!sessionId) return; const b = JSON.stringify({ sessionId }); if (navigator.sendBeacon) navigator.sendBeacon('/api/browser/release', new Blob([b], { type: 'application/json' })); else post('/api/browser/release', { sessionId }); });
   urlIn.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') go(); }); // stopPropagation: don't forward to the page
   root.querySelector('[data-go]').onclick = go;
   root.querySelector('[data-reload]').onclick = () => { if (sessionId) post('/api/browser/navigate', { sessionId, url: urlIn.value || 'https://www.google.com' }); };
@@ -435,7 +489,7 @@ function renderTerminal(root) {
 
 // The agent runtime is the system's brain — first-class. One session is booted once and reused
 // across opens (the other runtimes are resources it drives). Backed by the Nodus SDK.
-let agentSession = null, agentBoot = null;
+let agentSession = null;
 
 function renderAgent(root) {
   root.classList.remove('no-padding');
@@ -476,12 +530,21 @@ function renderAgent(root) {
     msgs.forEach((m) => log.appendChild(bubble(m)));
     log.scrollTop = log.scrollHeight;
   }
-  const pushEvents = (events) => (events || []).forEach((e) => { const t = (e.payload || {}).text; if (e.eventType === 'assistant_message' && t) msgs.push({ role: 'assistant', text: t }); });
+  async function pushEvents(events) {
+    for (const e of events || []) {
+      const text = (e.payload || {}).text;
+      if (e.eventType !== 'assistant_message' || !text) continue;
+      msgs.push({ role: 'assistant', text });
+      const match = text.match(/https?:\/\/(?:localhost|127\.0\.0\.1):([0-9]{2,5})/i);
+      if (!match || !agentSession) continue;
+      try {
+        const preview = await nodusClient.sessions.preview(agentSession.session.id, Number(match[1]));
+        msgs.push({ role: 'system', text: `Preview opened on port ${preview.port}.` });
+        openBrowserUrl(preview.url);
+      } catch (error) { msgs.push({ role: 'system', text: `Preview unavailable: ${error.message || error}` }); }
+    }
+  }
 
-  const KEY_STORE = 'lunix.anthropicKey';
-
-  // Auth gate: Claude Code needs an Anthropic key. Stored locally; used as the agent's auth bundle.
-  // With the modal runtime it authenticates a real Claude Code sandbox; with mock it just echoes.
   function authCard(errMsg) {
     booting = false; statusEl.textContent = 'not connected';
     log.innerHTML = '';
@@ -490,43 +553,52 @@ function renderAgent(root) {
     card.innerHTML = `
       <div style="width:34px;height:34px;color:#17796d;margin:0 auto;display:flex;">${I.agent}</div>
       <div style="font-weight:600;color:#24231f;">Connect Claude Code</div>
-      <div style="font-size:12px;color:#9e9a93;line-height:1.5;">Paste your Anthropic API key to authenticate the agent runtime. Stored locally in this browser.</div>
-      <input data-key type="password" placeholder="sk-ant-…" style="border:1px solid #e2dfd8;border-radius:9px;padding:9px 12px;font-size:13px;outline:none;">
-      <button data-connect style="border:none;background:#17796d;color:#fff;border-radius:9px;padding:9px;font-size:13px;font-weight:600;cursor:pointer;">Connect</button>
+      <div style="font-size:12px;color:#9e9a93;line-height:1.5;">Sign in with your Claude subscription in the Browser app. No API key is stored in lunix.</div>
+      <button data-connect style="border:none;background:#17796d;color:#fff;border-radius:9px;padding:9px;font-size:13px;font-weight:600;cursor:pointer;">Sign in with Claude</button>
       <div data-err style="color:#b65347;font-size:12px;min-height:14px;">${errMsg ? escapeHtml(errMsg) : ''}</div>`;
     log.appendChild(card);
-    const keyIn = card.querySelector('[data-key]'), err = card.querySelector('[data-err]');
+    const err = card.querySelector('[data-err]');
     const connect = async () => {
-      const key = keyIn.value.trim();
-      if (!key) { err.textContent = 'Enter an API key.'; return; }
-      localStorage.setItem(KEY_STORE, key); agentBoot = null; agentSession = null; await boot();
+      const button = card.querySelector('[data-connect]'); button.disabled = true; button.textContent = 'Starting secure login…'; err.textContent = '';
+      try {
+        const created = await nodusClient.agents.create({ provider: 'claude' });
+        const started = await nodusClient.agents.startAuth(created.agent.id, { authMethod: 'subscription' });
+        showAuthCode(created.agent.id, started.authSession);
+      } catch (e) { button.disabled = false; button.textContent = 'Sign in with Claude'; err.textContent = e.message || e; }
     };
     card.querySelector('[data-connect]').onclick = connect;
-    keyIn.addEventListener('keydown', (e) => { if (e.key === 'Enter') connect(); });
-    keyIn.focus();
+  }
+
+  function showAuthCode(agentId, authSession) {
+    statusEl.textContent = 'waiting for login'; log.innerHTML = '';
+    const card = document.createElement('div'); card.style.cssText = 'margin:auto;max-width:360px;text-align:center;display:flex;flex-direction:column;gap:12px;';
+    card.innerHTML = `<div style="font-weight:600;color:#24231f;">Finish signing in</div><div style="font-size:12px;color:#9e9a93;line-height:1.5;">The Browser app opened Claude’s real login page. After login, paste the authorization code here.</div><button data-open style="border:1px solid #e2dfd8;background:#fff;border-radius:9px;padding:8px;font-size:13px;cursor:pointer;">Open login in Browser</button><input data-code placeholder="Paste authorization code" autocomplete="off" style="border:1px solid #e2dfd8;border-radius:9px;padding:9px 12px;font-size:13px;outline:none;"><button data-finish style="border:none;background:#17796d;color:#fff;border-radius:9px;padding:9px;font-size:13px;font-weight:600;cursor:pointer;">Finish login</button><div data-err style="color:#b65347;font-size:12px;min-height:14px;"></div>`;
+    log.appendChild(card);
+    const code = card.querySelector('[data-code]'), finish = card.querySelector('[data-finish]'), err = card.querySelector('[data-err]');
+    const open = () => openBrowserUrl(authSession.authUrl); card.querySelector('[data-open]').onclick = open; open();
+    const complete = async () => {
+      if (!code.value.trim()) { err.textContent = 'Paste the authorization code.'; return; }
+      finish.disabled = true; finish.textContent = 'Connecting…'; err.textContent = '';
+      try {
+        let result = await nodusClient.agents.completeAuth(agentId, authSession.id, { providerCode: code.value.trim() });
+        for (let i = 0; result.status === 'completing' && i < 80; i++) { await new Promise((r) => setTimeout(r, 3000)); result = await nodusClient.agents.completeAuth(agentId, authSession.id, { providerCode: code.value.trim() }); }
+        if (result.status !== 'healthy') throw new Error('Login timed out. Please start again.');
+        const session = await nodusClient.sessions.start(agentId); agentSession = { agentId, session: session.session }; booting = false; statusEl.textContent = 'claude · live'; msgs.length = 0; paintLog();
+      } catch (e) { finish.disabled = false; finish.textContent = 'Finish login'; err.textContent = e.message || e; }
+    };
+    finish.onclick = complete; code.addEventListener('keydown', (e) => { if (e.key === 'Enter') complete(); }); code.focus();
   }
 
   async function boot() {
     if (!nodusClient) { statusEl.textContent = 'runtime offline'; booting = false; msgs.length = 0; msgs.push({ role: 'system', text: 'Agent runtime not reachable on :8787. Start it (npm run dev).' }); return paintLog(); }
-    const key = localStorage.getItem(KEY_STORE);
-    if (!key) return authCard();
-    booting = true; statusEl.textContent = 'connecting…'; msgs.length = 0; paintLog();
-    try {
-      if (!agentBoot) agentBoot = nodusClient.ensureSession({ provider: 'claude', apiKey: key });
-      agentSession = await agentBoot;
-      pushEvents((await nodusClient.sessions.events(agentSession.session.id)).events);
-      statusEl.textContent = 'claude · live';
-    } catch (e) {
-      agentBoot = null; agentSession = null; localStorage.removeItem(KEY_STORE);
-      return authCard('Auth failed: ' + (e.message || e));
-    }
-    booting = false; paintLog();
+    if (!agentSession) return authCard();
+    booting = false; statusEl.textContent = 'claude · live'; paintLog();
   }
   async function send() {
     const text = input.value.trim();
     if (!text || sending || !agentSession) return;
     input.value = ''; msgs.push({ role: 'user', text }); sending = true; statusEl.textContent = 'thinking…'; paintLog();
-    try { pushEvents((await nodusClient.sessions.sendMessage(agentSession.session.id, text)).events); }
+    try { await pushEvents((await nodusClient.sessions.sendMessage(agentSession.session.id, text)).events); }
     catch (e) { msgs.push({ role: 'system', text: 'error: ' + (e.message || e) }); }
     sending = false; statusEl.textContent = 'claude · live'; paintLog();
   }
@@ -535,7 +607,7 @@ function renderAgent(root) {
   paintLog(); boot();
 }
 
-function escapeHtml(s) { return s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])); }
+function escapeHtml(s) { return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
 // ---- boot ----
 buildDock();

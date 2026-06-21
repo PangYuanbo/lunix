@@ -77,6 +77,7 @@
         resume: (sessionId) => req("POST", `/sessions/${enc(sessionId)}/resume`),
         destroy: (sessionId) => req("DELETE", `/sessions/${enc(sessionId)}`),
         events: (sessionId) => req("GET", `/sessions/${enc(sessionId)}/events`),
+        preview: (sessionId, port) => req("POST", `/sessions/${enc(sessionId)}/preview`, { port }),
         sync: (sessionId, knownSourceUuids) => req("POST", `/sessions/${enc(sessionId)}/sync`, { knownSourceUuids }),
         chatSocket: (sessionId) => new WebSocket(wsUrl(`/sessions/${enc(sessionId)}/chat`)),
         terminalSocket: (sessionId) => new WebSocket(wsUrl(`/sessions/${enc(sessionId)}/terminal`)),

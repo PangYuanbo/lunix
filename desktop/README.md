@@ -27,8 +27,8 @@ assets/mark.svg app mark
 - **Window manager** — open from the dock, focus z-ordering, drag by the title bar, 8-way resize.
   Drag/resize use Pointer Events with pointer capture (no lost frames over iframes) and move on the
   compositor, so it stays smooth even over heavy embedded content.
-- **Agent** *(the brain — first-class)* — a real agent runtime via the Nodus SDK: `ensureSession`
-  boots an agent (create → auth → session), then it streams the conversation. Opens on load.
+- **Agent** *(the brain — first-class)* — a real agent runtime via the Nodus SDK. Claude subscription
+  login starts in the Nodus Modal auth runner, opens the provider URL in Browser, then starts a session.
 - **Files** — a multi-source file manager. Mounts: **Workspace** (the Nodus WorkspaceRuntime, via the
   SDK) and **Local** (real home folders, home-sandboxed; desktop-only — hidden on iPad/cloud). Browse,
   read into an editable preview, and Save writes back to whichever source is mounted.
@@ -59,7 +59,7 @@ Apps that need a runtime (all optional — each degrades to a clear message if i
 
 | App      | Runtime to start |
 |----------|------------------|
-| Files (Workspace) · Agent | Nodus backend: `cd Nodus-backend && NODUS_WORKSPACE_RUNTIME_DRIVER=local npm run dev` (:8787) |
+| Files (Workspace) · Agent | Set `NODUS_URL` to a Nodus backend with runtime + auth runners (or run it locally on `:8787`) |
 | Terminal | a web terminal service on `:7777` |
 | Browser  | set `BROWSERBASE_API_KEY` + `BROWSERBASE_PROJECT_ID` in a local `.env` (gitignored) |
 
