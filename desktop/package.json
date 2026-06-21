@@ -1,0 +1,8 @@
+{
+  "name": "@lunix/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A lightweight web desktop: shell, dock, window manager, files, terminal, and a cloud browser.",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" }
+}

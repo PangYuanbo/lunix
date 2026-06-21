@@ -1,0 +1,18 @@
+{
+  "name": "lunix-mono",
+  "private": true,
+  "version": "0.1.0",
+  "description": "lunix monorepo — the web desktop and its embedded terminal",
+  "workspaces": [
+    "desktop",
+    "terminal"
+  ],
+  "scripts": {
+    "desktop": "npm start -w @lunix/desktop",
+    "terminal": "npm start -w @lunix/terminal",
+    "terminal:web": "npm run web -w @lunix/terminal"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
