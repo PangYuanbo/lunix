@@ -119,7 +119,10 @@ let previewTarget = null;
 let browserTargetUrl = '';
 let filesOpenPath = '/Desktop';
 
+const normalizeBrowserUrl = (url) => /^https?:\/\//i.test(String(url || '').trim()) ? String(url).trim() : `https://${String(url || '').trim()}`;
+
 function openBrowserUrl(url, internal = false) {
+  url = normalizeBrowserUrl(url);
   if (internal) {
     browserTargetUrl = url;
     openApp(GROUP_B.find((app) => app.id === 'browser'));
@@ -621,7 +624,7 @@ function renderBrowser(root) {
     await activate(page?.targetId); await send('Target.setDiscoverTargets', { discover: true });
     return {
       input: (params) => send(params.method, params.params, pageSession),
-      navigate: (url) => send('Page.navigate', { url: /^[a-z]+:\/\//i.test(url) ? url : 'https://' + url }, pageSession),
+      navigate: (url) => send('Page.navigate', { url: normalizeBrowserUrl(url) }, pageSession),
       resize: async (nextWidth, nextHeight) => { viewport = { width: nextWidth, height: nextHeight }; await send('Emulation.setDeviceMetricsOverride', { ...viewport, deviceScaleFactor: 1, mobile: false }, pageSession); await send('Page.startScreencast', { format: 'jpeg', quality: 60, maxWidth: nextWidth, maxHeight: nextHeight, everyNthFrame: 1 }, pageSession); },
       close: () => ws.close(),
     };
@@ -630,7 +633,8 @@ function renderBrowser(root) {
   requestAnimationFrame(() => {
     const { width, height } = size();
     const shared = agentSession?.session?.id;
-    const start = shared ? nodusClient.browser.session(shared, browserTargetUrl) : post('/api/browser/session', { width, height, url: browserTargetUrl }).then((r) => r.json());
+    const initialUrl = normalizeBrowserUrl(browserTargetUrl || 'www.google.com');
+    const start = shared ? nodusClient.browser.session(shared, initialUrl) : post('/api/browser/session', { width, height, url: initialUrl }).then((r) => r.json());
     start.then((s) => {
       if (s.error || !s.sessionId) { msg.textContent = s.error ? 'Browser unavailable: ' + s.error : 'Could not start a session.'; return; }
       sessionId = s.sessionId; urlIn.value = s.home || '';
@@ -679,15 +683,15 @@ function renderBrowser(root) {
   view.addEventListener('keyup', (e) => { e.preventDefault(); sendKey('keyUp', e); });
 
   // ---- address bar + reload + resize ----
-  const go = () => { const url = urlIn.value.trim(); if (url && sessionId) hosted ? hosted.navigate(url) : post('/api/browser/navigate', { sessionId, url }); view.focus(); };
-  const navigate = (url) => { if (!url) return; urlIn.value = url; if (sessionId) hosted ? hosted.navigate(url) : post('/api/browser/navigate', { sessionId, url }); };
+  const go = () => { const url = normalizeBrowserUrl(urlIn.value); if (url && sessionId) { urlIn.value = url; hosted ? hosted.navigate(url) : post('/api/browser/navigate', { sessionId, url }); } view.focus(); };
+  const navigate = (url) => { if (!url) return; url = normalizeBrowserUrl(url); urlIn.value = url; if (sessionId) hosted ? hosted.navigate(url) : post('/api/browser/navigate', { sessionId, url }); };
   const onNavigate = (e) => navigate(e.detail);
   window.addEventListener('lunix-browser-navigate', onNavigate);
   cleanup.set('browser', () => { window.removeEventListener('lunix-browser-navigate', onNavigate); hosted?.close(); });
   urlIn.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') go(); }); // stopPropagation: don't forward to the page
   root.querySelector('[data-go]').onclick = go;
   root.querySelector('[data-new-session]').onclick = async () => { if (!agentSession?.session?.id && sessionId) await post('/api/browser/release', { sessionId }); windows.get('browser')?.querySelector('.close').click(); browserTargetUrl = ''; openApp(GROUP_B.find((app) => app.id === 'browser')); };
-  root.querySelector('[data-reload]').onclick = () => { if (sessionId) hosted ? hosted.navigate(urlIn.value || 'https://www.google.com') : post('/api/browser/navigate', { sessionId, url: urlIn.value || 'https://www.google.com' }); };
+  root.querySelector('[data-reload]').onclick = () => { const url = normalizeBrowserUrl(urlIn.value || 'www.google.com'); if (sessionId) hosted ? hosted.navigate(url) : post('/api/browser/navigate', { sessionId, url }); };
   let rt; const ro = new ResizeObserver(() => { clearTimeout(rt); rt = setTimeout(() => { if (!sessionId) return; const { width, height } = size(); fit(width, height); hosted ? hosted.resize(width, height) : post('/api/browser/resize', { sessionId, width, height }); }, 250); });
   ro.observe(view);
 }
@@ -799,7 +803,7 @@ function renderAgent(root) {
   root.style.background = '#fff';
   root.style.position = 'relative';
   let booting = true, sending = false, aborted = false;
-  let assistantView = null, chatSocket = null, chatReadyTimer = null, taskTimer = null, taskStartedAt = 0, lastServerFrameAt = 0, lastProgressAt = 0, reconnectAttempts = 0, socketReady = false;
+  let assistantView = null, chatSocket = null, chatReadyTimer = null, taskTimer = null, taskStartedAt = 0, workingDetailOffset = 0, lastServerFrameAt = 0, lastProgressAt = 0, reconnectAttempts = 0, socketReady = false;
   const streamText = new Map(), openedPreviews = new Set();
   let refreshChanges = async () => {};
 
@@ -852,6 +856,20 @@ function renderAgent(root) {
   const showLoading = (title, detail) => { mountAssistant().setLoading({ title, detail }); lockComposer(true); root.setAttribute('aria-busy', 'true'); };
   const hideLoading = () => { mountAssistant().setLoading(null); lockComposer(sending, sending); root.removeAttribute('aria-busy'); };
   const elapsedLabel = (ms) => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`;
+  const workingDetails = [
+    'Understanding the request and planning the next steps…',
+    'Inspecting the workspace and relevant files…',
+    'Connecting the task to the available runtimes…',
+    'Working through the implementation details…',
+    'Checking the current state before making changes…',
+    'Comparing possible approaches and choosing the safest one…',
+    'Applying focused changes in the workspace…',
+    'Reviewing the result for missed edge cases…',
+    'Running checks against the latest changes…',
+    'Following the task through its remaining steps…',
+    'Keeping the workspace in sync while work continues…',
+    'Verifying that the result matches your request…',
+  ];
   const clearTaskState = () => { clearInterval(taskTimer); taskTimer = null; mountAssistant().setTask(null); };
   const stopTask = async () => {
     if (!sending || !agentSession) return;
@@ -870,15 +888,12 @@ function renderAgent(root) {
   const updateTaskState = () => {
     if (!sending) return clearTaskState();
     const now = Date.now(), elapsed = now - taskStartedAt, connectionSilent = now - lastServerFrameAt, progressSilent = now - lastProgressAt;
-    let title = 'Agent is working', detail = 'The current task is still running.', tone = 'working', actions = false;
-    if (elapsed < 8000) detail = 'Understanding the request and preparing the workspace…';
-    else if (elapsed < 30000) detail = 'Working in the runtime. Complex tasks can take a little while…';
-    else detail = 'Still running. You can safely wait or stop the task.';
+    let title = 'Agent is working', detail = workingDetails[(workingDetailOffset + Math.floor(elapsed / 7000)) % workingDetails.length], tone = 'working', actions = false;
     if (connectionSilent >= 10000) { title = 'Connection interrupted'; detail = 'No server update has arrived recently.'; tone = 'warning'; actions = true; }
-    else if (progressSilent >= 30000) { title = 'Agent is still working'; detail = 'The runtime is connected. This step has not produced new visible output yet.'; }
+    else if (progressSilent >= 30000) title = 'Agent is still working';
     mountAssistant().setTask({ title, detail, tone, actions, elapsed: elapsedLabel(elapsed), onReconnect: reconnectTask, onStop: stopTask });
   };
-  const startTaskState = () => { taskStartedAt = lastServerFrameAt = lastProgressAt = Date.now(); reconnectAttempts = 0; clearInterval(taskTimer); taskTimer = setInterval(updateTaskState, 1000); updateTaskState(); };
+  const startTaskState = () => { taskStartedAt = lastServerFrameAt = lastProgressAt = Date.now(); workingDetailOffset = Math.floor(Math.random() * workingDetails.length); reconnectAttempts = 0; clearInterval(taskTimer); taskTimer = setInterval(updateTaskState, 1000); updateTaskState(); };
   const statusMessage = (title, detail, tone = 'info') => ({
     id: `status-${Date.now()}-${Math.random()}`, role: 'system',
     parts: [{ type: 'data-status', data: { title, detail, tone } }],

@@ -1,0 +1,21 @@
+{
+  "name": "Lunix",
+  "short_name": "Lunix",
+  "description": "A browser-native operating system for agentic work.",
+  "start_url": "/app/",
+  "display": "standalone",
+  "background_color": "#f7f8fa",
+  "theme_color": "#d5ece8",
+  "icons": [
+    {
+      "src": "/icons/lunix-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/lunix-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

@@ -24,13 +24,13 @@ function Video({ name }) {
 function PlanB() {
   return <main>
     <header>
-      <a className="brand" href="/"><span>L</span><b>lunix</b></a>
+      <a className="brand" href="/"><img src="/icons/lunix-icon-192.png" alt=""/><b>lunix</b></a>
       <nav><a href="#runtimes">Runtimes</a><a href="#system">System</a><a className="button primary app-button" href="/app/">Open App <span>↗</span></a></nav>
     </header>
 
     <section className="hero">
       <div className="hero-copy">
-        <div className="mark">L</div>
+        <div className="mark"><img src="/icons/lunix-icon-192.png" alt=""/></div>
         <h1>Lunix</h1>
         <p className="tagline">An operating system for agentic work.</p>
         <p className="intro">The desktop renders locally. Agent, workspace, and browser runtimes can live anywhere.</p>
@@ -63,7 +63,7 @@ function PlanB() {
       <div>{[['Local shell','Windows, dock, files, and interaction render on your device.'],['Runtime freedom','Swap providers and regions without replacing your desktop.'],['Human control','Open, edit, take over, pause, or stop any part of the work.']].map(([title,text])=><article key={title}><span>✓</span><h3>{title}</h3><p>{text}</p></article>)}</div>
     </section>
 
-    <section className="cta"><div><div className="mark small">L</div><h2>Your operating system stays with you.</h2><p>Compute can live anywhere.</p></div><a className="button primary" href="/app/">Open Lunix <span>↗</span></a></section>
+    <section className="cta"><div><div className="mark small"><img src="/icons/lunix-icon-192.png" alt=""/></div><h2>Your operating system stays with you.</h2><p>Compute can live anywhere.</p></div><a className="button primary" href="/app/">Open Lunix <span>↗</span></a></section>
     <footer><span>lunix</span><p>Local interface. Remote intelligence.</p><a href="/app/">Open App</a></footer>
   </main>;
 }

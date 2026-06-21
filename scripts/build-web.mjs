@@ -18,12 +18,15 @@ for (const file of ['index.html', 'styles.css', 'content-first.css', 'app.js', '
 for (const file of ['index.html', 'styles.css']) fs.copyFileSync(path.join(root, 'terminal', file), path.join(out, 'app', 'terminal', file));
 for (const dir of ['web', 'dist']) fs.cpSync(path.join(root, 'terminal', dir), path.join(out, 'app', 'terminal', dir), { recursive: true });
 fs.cpSync(path.join(root, 'desktop', 'assistant-dist'), path.join(out, 'app', 'assistant'), { recursive: true });
+fs.cpSync(path.join(root, 'desktop', 'icons'), path.join(out, 'app', 'icons'), { recursive: true });
 const terminalIndex = path.join(out, 'app', 'terminal', 'index.html');
 fs.writeFileSync(terminalIndex, fs.readFileSync(terminalIndex, 'utf8').replace('<head>', '<head>\n  <base href="/app/terminal/">'));
 fs.cpSync(path.join(root, 'web-api'), path.join(out, 'api'), { recursive: true });
 fs.cpSync(path.join(root, 'desktop', 'cloud-browser', 'assets'), path.join(out, 'assets'), { recursive: true });
 fs.cpSync(path.join(root, 'desktop', 'cloud-browser', 'media'), path.join(out, 'media'), { recursive: true });
+fs.cpSync(path.join(root, 'desktop', 'cloud-browser', 'icons'), path.join(out, 'icons'), { recursive: true });
 fs.copyFileSync(path.join(root, 'desktop', 'cloud-browser', 'favicon.svg'), path.join(out, 'favicon.svg'));
+fs.copyFileSync(path.join(root, 'desktop', 'cloud-browser', 'manifest.webmanifest'), path.join(out, 'manifest.webmanifest'));
 fs.copyFileSync(path.join(root, 'desktop', 'cloud-browser', 'plan-b.html'), path.join(out, 'index.html'));
 
 fs.writeFileSync(path.join(out, 'app', 'config.js'), `window.__LUNIX=${JSON.stringify({
