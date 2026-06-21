@@ -1,12 +1,39 @@
 // Browser bridge: provides window.warp + window.crates when running in a plain browser (served by
 // web-server.js). In Electron these are already set by preload.js, so this file no-ops there.
-// PTY runs on the server; output arrives via SSE, input goes out via fetch POST.
+// PTY runs on the local server, or in the current Nodus workspace when the iframe supplies sessionId.
 (function () {
   if (window.warp) return; // Electron preload already wired everything — nothing to do.
 
   const dataCbs = [], exitCbs = [];
   const streams = new Map(); // id -> EventSource
+  const sockets = new Map(); // id -> Nodus WebSocket
+  const params = new URLSearchParams(location.search);
+  const sessionId = params.get('sessionId');
+  const nodusUrl = params.get('nodusUrl');
+  const userId = params.get('userId');
   const post = (path, obj) => fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(obj) });
+
+  function nodusSocket() {
+    const url = new URL(nodusUrl);
+    url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+    url.pathname = url.pathname.replace(/\/$/, '') + '/sessions/' + encodeURIComponent(sessionId) + '/terminal';
+    url.search = '?userId=' + encodeURIComponent(userId || 'default');
+    return url;
+  }
+
+  function openNodus(id, cols, rows) {
+    if (sockets.has(id)) return Promise.resolve(true);
+    return new Promise((resolve, reject) => {
+      const ws = new WebSocket(nodusSocket(), ['tty']); ws.binaryType = 'arraybuffer'; sockets.set(id, ws);
+      ws.onopen = () => { ws.send('1' + JSON.stringify({ columns: cols || 80, rows: rows || 24 })); resolve(true); };
+      ws.onmessage = async (e) => {
+        const text = typeof e.data === 'string' ? e.data : new TextDecoder().decode(e.data);
+        if (text[0] === '0') dataCbs.forEach((cb) => cb({ id, data: text.slice(1) }));
+      };
+      ws.onclose = () => { sockets.delete(id); exitCbs.forEach((cb) => cb({ id })); };
+      ws.onerror = () => reject(new Error('Nodus terminal unavailable'));
+    });
+  }
 
   function openStream(id) {
     if (streams.has(id)) return Promise.resolve();
@@ -18,10 +45,10 @@
   }
 
   window.warp = {
-    spawn: async (id, cols, rows) => { await openStream(id); return post('/pty/spawn', { id, cols, rows }).then((r) => r.json()); },
-    write: (id, data) => post('/pty/write', { id, data }),
-    resize: (id, cols, rows) => post('/pty/resize', { id, cols, rows }),
-    kill: (id) => { const es = streams.get(id); if (es) { es.close(); streams.delete(id); } return post('/pty/kill', { id }); },
+    spawn: async (id, cols, rows) => sessionId && nodusUrl ? openNodus(id, cols, rows) : (await openStream(id), post('/pty/spawn', { id, cols, rows }).then((r) => r.json())),
+    write: (id, data) => sockets.has(id) ? sockets.get(id).send('0' + data) : post('/pty/write', { id, data }),
+    resize: (id, cols, rows) => sockets.has(id) ? sockets.get(id).send('1' + JSON.stringify({ columns: cols, rows })) : post('/pty/resize', { id, cols, rows }),
+    kill: (id) => { const ws = sockets.get(id); if (ws) { ws.close(); sockets.delete(id); return Promise.resolve(true); } const es = streams.get(id); if (es) { es.close(); streams.delete(id); } return post('/pty/kill', { id }); },
     onData: (cb) => dataCbs.push(cb),
     onExit: (cb) => exitCbs.push(cb),
     openExternal: (url) => { if (/^https?:\/\//.test(url)) window.open(url, '_blank'); },

@@ -8,6 +8,7 @@
     "terminal"
   ],
   "scripts": {
+    "build:web": "node scripts/build-web.mjs",
     "dev": "node scripts/dev.mjs",
     "desktop": "npm start -w @lunix/desktop",
     "terminal": "npm start -w @lunix/terminal",
