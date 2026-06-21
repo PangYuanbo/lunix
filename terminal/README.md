@@ -1,41 +1,38 @@
 # @lunix/terminal
 
-A **block-based terminal** with a from-scratch render engine (VTE parser → `Grid<Cell>` → GPU/DOM),
-built as both an Electron app and an embeddable web build. Commands render as cards (cwd + command
-head, exit chip, ANSI-colored output) with a dedicated prompt editor — no xterm.js.
+An Electron and embeddable web terminal powered by [`@wterm/dom`](https://wterm.dev/). The previous
+custom VTE/Grid/GPU implementation is archived at `history/terminal-legacy-2026-06-21/`.
 
 ## Run
 
 ```bash
-npm install            # rebuilds node-pty for Electron (postinstall)
-npm start              # Electron app
-npm run web            # web build served on :7777 (embeddable via iframe)
+npm install            # installs wterm and rebuilds node-pty for Electron
+npm start              # build and open the Electron app
+npm run web            # build and serve the embeddable web terminal on :7777
 ```
 
 ## Embedding
 
-The web build runs the same renderer in a browser, bridging the PTY over HTTP + SSE. A host (e.g. the
-desktop) embeds it via iframe:
+The browser build uses the same wterm renderer and bridges PTY traffic through the existing
+Electron IPC, local HTTP/SSE service, or Nodus workspace WebSocket.
 
 - `?theme=<key>` — pick a skin (e.g. `sand` for a warm light theme).
 - `?embed=1` — hide the built-in title/status bars so the host window is the only chrome.
 
 ## Features
 
-Real shell via PTY (`node-pty`, your `$SHELL` + rc files) · block model via OSC 133 shell integration ·
-per-block copy/rerun/save · tabs (⌘T) · split panes (⌘D) · command palette (⌘K) · NL→command (⌘I) ·
-history/builtin autosuggest (`⌃→`) · themes (live switch, persisted) · full ANSI / TUI apps
-(vim, htop, less) via the from-scratch VTE engine + alt-screen.
+Real shell via `node-pty` or Nodus · wterm VT/WASM engine · tabs (`⌘T`) · split panes (`⌘D`) ·
+close tab (`⌘W`) · dark and embedded sand themes · browser-native selection, copy/paste, and find.
 
 ## Layout
 
 ```
-main.js / preload.js    Electron main + PTY bridge (IPC)
-web-server.js           web build's HTTP + SSE/POST PTY gateway
-renderer.js             tabs, panes, blocks, themes, palette
-src/crates/             the engine — vte parser, grid, block view, glyph atlas
-shell-integration/      bash/zsh hooks: OSC 133 block markers + OSC 7001 exact command
-test/                   node unit tests (npm test) + CDP smoke test (npm run test:live)
+main.js / preload.js    Electron main + PTY bridge
+web-server.js           local browser PTY gateway
+web/bridge.js           local or Nodus browser bridge
+renderer.js             wterm integration, tabs, and split panes
+dist/                   generated browser bundle
+test/                   bridge/integration check
 ```
 
 ## License

@@ -1,192 +1,40 @@
 :root {
-  /* Exact Warp default-Dark design tokens (open-source app/src/themes): bg #000, accent #19AAD8,
-     text = white at the DARKER_DETAILS opacities (main 90 / sub 60 / hint 40 / disabled 20). */
-  --bg: #000000; --bg-2: #141414; --fg: rgba(255,255,255,.90);
-  --accent: #19AAD8; --muted: rgba(255,255,255,.40); --border: #222222;
-  --w-main: rgba(255,255,255,.90); --w-sub: rgba(255,255,255,.60);
-  --w-hint: rgba(255,255,255,.40); --w-disabled: rgba(255,255,255,.20);
+  color-scheme: dark;
+  --shell-bg: #151719;
+  --bar-bg: #1b1e21;
+  --border: rgba(255, 255, 255, .1);
+  --muted: #92989f;
+  --accent: #4a9e8e;
 }
 * { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; background: var(--term-bg); color: var(--fg);
-  font-family: -apple-system, "SF Pro Text", Menlo, monospace; overflow: hidden; }
-body { display: flex; flex-direction: column; }
-
-/* Tab bar — exact Warp constants (app/src/tab.rs): tab container padding 8px h / 5px v,
-   indicator dot ~14px box, active-tab color opacity 25% / hover 50%, close button 20px @ 60%,
-   bar bottom border TAB_BAR_BORDER_HEIGHT 1px. Surfaces = white overlay over #000. */
-/* Tab bar — TAB_BAR_HEIGHT 34 + TAB_BAR_BORDER_HEIGHT 1 = 35px; bottom border = outline (white @10%). */
-#titlebar { height: 35px; -webkit-app-region: drag; display: flex; align-items: center;
-  justify-content: space-between; padding: 0 10px 0 80px; background: var(--term-bg);
-  border-bottom: 1px solid rgba(255,255,255,.10); font-size: 12px; }
-.tb-left, .tb-right { display: flex; align-items: center; gap: 6px; }
-.tb-right { -webkit-app-region: no-drag; }
-.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
-#tabs { display: flex; gap: 2px; -webkit-app-region: no-drag; }
-/* Tab item — active bg = fg_overlay_2 (white @10%), hover = fg_overlay_1 (white @5%), inactive transparent;
-   text active = active_ui_text_color (main 90%), inactive = nonactive_ui_text_color (sub 60%); radius 4px (tab.rs). */
-.tab { padding: 4px 8px; border-radius: 4px; cursor: pointer; color: var(--w-sub);
-  background: transparent; border: 0; max-width: 180px; display: flex; align-items: center; gap: 7px; font-size: 12.5px; }
-.tab:hover { background: rgba(255,255,255,.05); }
-.tab.active { color: var(--w-main); background: rgba(255,255,255,.10); }
-/* Close button — TAB_CLOSE_BUTTON_WIDTH 20px, TAB_CLOSE_BUTTON_OPACITY 60 (white @60%). */
-.tab .x { color: rgba(255,255,255,.60); width: 20px; text-align: center; }
-.tab .x:hover { color: var(--w-main); }
-#titlebar button, #newtab { -webkit-app-region: no-drag; background: transparent; color: var(--w-sub);
-  border: 0; border-radius: 6px; padding: 4px 8px; font-size: 12px; cursor: pointer; }
-#titlebar button:hover { color: var(--w-main); background: rgba(255,255,255,.06); }
-#panes-host { flex: 1; position: relative; overflow: hidden; }
-/* Embed mode (?embed=1): a host (e.g. a desktop window) already provides the window chrome, so hide
-   Warp's own title bar + status bar and let the terminal fill — no double chrome, no double status bar. */
-html.embed #titlebar, html.embed #statusbar { display: none; }
-html.embed .tab-panes { padding: 0; }
-html.embed .pane { border-radius: 0; border-color: transparent; }
-.tab-panes { position: absolute; inset: 0; display: flex; gap: 2px; padding: 6px; }
-.tab-panes.hidden { display: none; }
-.tab-panes.col { flex-direction: column; }
-.pane { flex: 1; min-width: 0; min-height: 0; border: 1px solid transparent; border-radius: 10px; overflow: hidden;
-  display: flex; flex-direction: column; background: var(--term-bg); }
-.pane.active { border-color: var(--border); }
-.pane:focus, .wpane:focus, .pane *:focus { outline: none; }
-
-/* ===== Warp block terminal UI (modeled on the real app) ===== */
-:root { --term-bg: #000000; --wpath: rgba(255,255,255,.60); --wbranch: #B4FA72; --wgit: rgba(255,255,255,.40);
-  --wcmd: rgba(255,255,255,.90); --wout: rgba(255,255,255,.60); --wfail: #FF8272;
-  --wmono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, monospace; }
-.wpane { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--term-bg); }
-/* Text selection — text_selection_color() = rgba(118,167,250,.40) (warp_core color.rs). */
-.wpane ::selection { background: rgba(118,167,250,.40); }
-/* URL links — underline in URL_COLOR rgb(103,171,250) on hover only; glyph color unchanged (grid_renderer.rs). */
-.wlink { cursor: pointer; }
-.wlink:hover { text-decoration: underline; text-decoration-color: rgb(103,171,250); text-underline-offset: 2px; }
-.wblocks { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 0 2px; }
-/* Scrollbar — ScrollbarWidth::Auto = 8px (warpui_core scrollable.rs), thumb = white overlay. */
-.wblocks::-webkit-scrollbar { width: 8px; } .wblocks::-webkit-scrollbar-thumb { background: rgba(255,255,255,.16); border-radius: 4px; border: 2px solid var(--term-bg); }
-.wblocks::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.26); }
-
-/* A block. Exact Warp "normal" spacing (app/src/settings/mod.rs TerminalSpacing::normal, cell≈16px):
-   padding_top 1.1 cells ≈18px, bottom 1.0 ≈16px, left = SEPARATOR_LEFT_OFFSET 20px;
-   cwd→command command_padding_top 0.19 ≈3px; command→output middle 0.5 ≈8px. */
-.wblock { position: relative; padding: 18px 16px 16px 16px;   /* left = terminal view PADDING_LEFT 16px */
-  box-shadow: inset 5px 0 0 transparent; transition: box-shadow .1s; }
-/* Divider between blocks — show_block_dividers defaults true; outline() = foreground @ 10% (color.rs). */
-.wblock + .wblock { border-top: 1px solid rgba(255,255,255,.10); }
-/* Failed block — failed_block_color (red) @ 10% wash + a 5px solid-red flag pole (LEFT_STRIPE_WIDTH). */
-.wblock.failed { background: rgba(255,130,114,.10); box-shadow: inset 5px 0 0 var(--wfail); }
-/* CLI agent block (Claude Code/Codex/…) — brand-colored flag pole + identity badge (cli_agent.rs). */
-.wblock.agent { box-shadow: inset 5px 0 0 var(--brand); }
-.wb-agent { display: inline-flex; align-items: center; gap: 6px; margin-right: 10px; vertical-align: middle; }
-.wb-agent-dot { display: inline-grid; place-items: center; width: 15px; height: 15px; border-radius: 50%;
-  font-size: 10px; line-height: 1; color: #fff; }                 /* brand tile = brand_color circle */
-.wb-agent-dot[data-dark="1"] { color: #000; }                     /* brand_icon_color: dark glyph on light brands */
-.wb-agent-name { color: var(--brand); font-size: 12px; font-weight: 600; }
-/* Live agent block — frameless & full-width: strip the block padding/dividers so the agent's own TUI
-   owns the space (Warp gives a running agent a clean region, not a boxed block). Keep a thin brand stripe. */
-.wblock.agent.live { padding: 2px 0 6px 10px; border-top: none; box-shadow: inset 3px 0 0 var(--brand); }
-.wblock.agent.live .wblock-cwd { margin-bottom: 2px; }
-.wblock.agent.live .wblock-out { margin-top: 2px; }
-.wblock.agent.live + .wblock { border-top: none; }
-.wblock-cwd { font-family: var(--wmono); font-size: 12px; line-height: 18px; margin-bottom: 3px; color: var(--wgit); }
-.wblock-cwd .wb-path { color: var(--wpath); }
-.wblock-cwd .wb-git { color: var(--wgit); } .wblock-cwd .wb-branch { color: var(--wbranch); }
-.wblock-cwd .wb-meta { float: right; color: var(--wgit); font-size: 11px; opacity: 0; transition: opacity .1s; }
-.wblock:hover .wb-meta { opacity: .85; }
-.wblock-cmd { font-family: var(--wmono); font-size: 13.5px; font-weight: 500; line-height: 21px;
-  color: var(--wcmd); white-space: pre-wrap; word-break: break-word; }
-.wblock-out { margin-top: 8px; font-family: var(--wmono); font-size: 13px; line-height: 19.5px;
-  color: var(--wout); white-space: pre-wrap; word-break: break-word; }
-/* Alt-screen overlay (vim/top/less) — full-pane monospace grid, no wrapping (each row is exactly cols). */
-.walt { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; color: var(--fg);
-  box-shadow: inset 3px 0 0 var(--brand, transparent); }  /* brand stripe for live agents; transparent for vim/top */
-.walt-head { padding: 8px 12px 4px; }
-.walt-grid { flex: 1; min-height: 0; overflow: hidden; font-family: var(--wmono); font-size: 13px;
-  line-height: 19.5px; white-space: pre; padding: 2px 12px 4px; }
-.walt-canvas { display: block; }   /* GPU-rendered agent/alt viewport (WebGL) */
-/* Block cursor in alt-screen apps & live agents — cursor() = accent (#19AAD8); dark glyph on accent. */
-.walt .wcursor { background: var(--accent); color: #06222c; }
-/* Hover toolbar — BLOCK_HOVER_BUTTON_HEIGHT 28px (block_list_element.rs). Surfaces = white overlay. */
-.wblock-tools { position: absolute; right: 12px; top: 8px; display: none; gap: 2px; z-index: 4;
-  background: #0d0d0d; padding: 2px; border-radius: 4px; }  /* toolbelt bg = surface_1 (#0d0d0d), radius 4px */
-.wblock:hover .wblock-tools { display: flex; }
-.wblock-tools button { width: 28px; height: 28px; display: grid; place-items: center; cursor: pointer; font-size: 13px;
-  color: var(--w-sub); background: transparent; border: 0; border-radius: 4px; }
-.wblock-tools button:hover { color: var(--w-main); background: rgba(255,255,255,.10); }
-
-/* bottom input editor (modeled on Warp's: input line, then a workspace/branch context row) */
-/* prompt_to_editor_padding 10px (top), editor_bottom_padding 20px. Surfaces = white overlay over #000. */
-/* Input box: border_radius 5px, border 1px neutral_4, top-border 1px; aligned to PADDING_LEFT 16px,
-   editor_bottom_padding 20px. (app/src/terminal/input.rs + view.rs) */
-/* Input editor — Warp's classic input is flush & full-width, NOT a rounded card. Source (input.rs +
-   settings normal spacing): 1px top border = outline (white @10%); padding top = prompt_to_editor 10px,
-   left/right = TERMINAL_VIEW_PADDING_LEFT 16px, editor_bottom_padding 20px. No box border, no bg. */
-.wprompt { padding: 10px 16px 20px 16px; border-top: 1px solid rgba(255,255,255,.10);
-  font-family: var(--wmono); font-size: 13.5px; }
-.wprompt-line { display: flex; align-items: center; gap: 9px; white-space: pre; overflow: hidden; min-height: 22px; }
-.wprompt-caret { color: var(--accent); font-weight: 700; }
-.wprompt-input { color: #eceef2; }
-.wsh-cmd { color: #B4FA72; }  /* command name — Warp ANSI green */
-.wsh-flag { color: #A5D5FE; } /* --flags — Warp ANSI blue */
-.wsh-str { color: #FEFDC2; }  /* "strings" — Warp ANSI yellow */
-.wsh-arg { color: rgba(255,255,255,.90); }  /* plain args — main text */
-.wprompt-cursor { display: inline-block; width: 8px; height: 17px; vertical-align: text-bottom;
-  background: var(--accent); opacity: .85; border-radius: 1px; animation: ibblink 1.1s step-end infinite; }
-.wprompt-ghost { color: #6b7280; }
-.wprompt-ctx { display: flex; align-items: center; gap: 14px; margin-top: 6px; font-size: 11.5px; }
-.wctx-cwd { color: var(--wpath); } .wctx-cwd::before { content: ''; }
-.wctx-git { color: var(--wbranch); }
-@keyframes ibblink { 50% { opacity: 0; } }
-
-#statusbar { height: 34px; display: flex; align-items: center; gap: 6px; padding: 0 8px;
-  background: var(--term-bg); border-top: 1px solid rgba(255,255,255,.08); font-size: 11.5px; color: var(--w-sub); }
-#statusbar .sb-ic { -webkit-app-region: no-drag; width: 26px; height: 24px; display: grid; place-items: center;
-  background: transparent; border: 0; border-radius: 6px; color: #8a90a0; font-size: 13px; cursor: pointer; }
-#statusbar .sb-ic:hover { background: rgba(255,255,255,.06); color: var(--w-main); }
-#statusbar .sb-chip { -webkit-app-region: no-drag; display: inline-flex; align-items: center; gap: 5px;
-  height: 24px; padding: 0 9px; background: transparent; border: 0; border-radius: 6px; color: #8a90a0;
-  font-size: 11.5px; font-family: var(--wmono); cursor: pointer; white-space: nowrap; }
-#statusbar .sb-chip:hover { background: rgba(255,255,255,.06); color: var(--w-main); }
-#statusbar .sb-ro { cursor: default; }
-#statusbar .sb-ro:hover { background: transparent; color: #8a90a0; }
-#statusbar .sb-dot { width: 6px; height: 6px; border-radius: 50%; background: #5af78e; display: inline-block; }
-#statusbar kbd { font-family: var(--wmono); font-size: 10px; padding: 1px 4px; border-radius: 4px;
-  background: rgba(255,255,255,.08); color: var(--w-sub); border: 1px solid rgba(255,255,255,.12); }
-#statusbar .sb-muted { color: #5c6170; font-size: 11px; margin-right: 4px; }
-#suggest { color: var(--accent); opacity: 0.8; font-size: 11px; }
+html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+body { display: grid; grid-template-rows: 38px minmax(0, 1fr); background: var(--shell-bg); font: 12px system-ui, sans-serif; }
+button { color: inherit; font: inherit; }
+#titlebar { -webkit-app-region: drag; display: flex; align-items: center; gap: 6px; padding: 0 8px 0 78px; background: var(--bar-bg); border-bottom: 1px solid var(--border); color: var(--muted); }
+#tabs { -webkit-app-region: no-drag; display: flex; align-self: stretch; min-width: 0; overflow: hidden; }
+.tab, #newtab, #split { -webkit-app-region: no-drag; border: 0; background: transparent; cursor: pointer; }
+.tab { display: flex; align-items: center; gap: 10px; max-width: 220px; padding: 0 12px; border-bottom: 2px solid transparent; color: var(--muted); }
+.tab.active { border-bottom-color: var(--accent); color: #f2f2f2; background: rgba(255,255,255,.035); }
+.tab > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tab-close { opacity: .5; font-size: 15px; }
+.tab-close:hover { opacity: 1; }
+#newtab, #split { padding: 5px 9px; border-radius: 5px; color: var(--muted); }
+#newtab:hover, #split:hover { color: #fff; background: rgba(255,255,255,.08); }
+#status { font-size: 11px; }
+#status::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 6px; border-radius: 50%; background: #d8a441; }
+#status[data-state='ready']::before { background: #55b98a; }
+#status[data-state='error']::before { background: #d4685e; }
 .grow { flex: 1; }
-
-#palette, #ai { position: fixed; inset: 0; background: rgba(0,0,0,0.70); display: flex;  /* MODAL_BACKDROP_OPACITY 179/255 */
-  align-items: flex-start; justify-content: center; padding-top: 90px; z-index: 100; }
-#palette.hidden, #ai.hidden { display: none; }
-/* Command palette — exact Warp dims (app/src/search/palette_styles.rs): PALETTE_WIDTH 640,
-   PALETTE_HEIGHT 464, SEARCH_BAR_PADDING_VERTICAL 16, RESULT_PADDING 24h/4v, row height 28,
-   item_highlight_corner_radius 4, panel border 1px outline. */
-.palette-box { width: 640px; background: #1a1a1a; border: 1px solid rgba(255,255,255,.10);  /* panel = surface_2; border = outline */
-  border-radius: 10px; overflow: hidden; box-shadow: 0 24px 70px rgba(0,0,0,0.6); }
-/* AI panel = a Warp modal: MODAL_WIDTH 440, MODAL_CORNER_RADIUS 8, MODAL_PADDING 28 (app/src/modal.rs) */
-.ai-box { width: 440px; background: #141414; border: 1px solid rgba(255,255,255,.12);
-  border-radius: 8px; overflow: hidden; box-shadow: 0 24px 70px rgba(0,0,0,0.6); }
-#palette-input { width: 100%; border: 0; outline: 0; background: transparent; color: var(--w-main);
-  font-size: 15px; padding: 16px 24px; border-bottom: 1px solid rgba(255,255,255,.10); }
-#palette-list { list-style: none; margin: 0; padding: 6px; max-height: 464px; overflow-y: auto; }
-#palette-list li { height: 28px; padding: 4px 24px; border-radius: 4px; cursor: pointer; font-size: 13px;
-  display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--w-main); }
-#palette-list li .hint { color: var(--w-hint); font-size: 11px; white-space: nowrap; }
-/* Hover = accent @20%, selected = accent @90% with readable text (result_renderer.rs item_background). */
-#palette-list li:hover { background: rgba(25,170,216,.20); }
-#palette-list li.active { background: rgba(25,170,216,.90); color: #fff; }
-#palette-list li.active .hint { color: rgba(255,255,255,.75); }
-
-/* AI modal internals — MODAL_PADDING 28, MODAL_HEADER_HEIGHT 70 (app/src/modal.rs). */
-.ai-head { height: 70px; display: flex; align-items: center; padding: 0 28px; font-size: 15px;
-  color: var(--w-main); border-bottom: 1px solid rgba(255,255,255,.08); }
-#ai-src { color: var(--w-hint); font-size: 11px; margin-left: 8px; }
-#ai-input { width: 100%; min-height: 64px; background: transparent; color: var(--w-main); border: 0;
-  outline: 0; padding: 20px 28px; font-size: 14px; resize: vertical; font-family: inherit; }
-#ai-out { margin: 0; padding: 16px 28px; background: rgba(255,255,255,.03); color: var(--w-sub); font-size: 13px;
-  white-space: pre-wrap; min-height: 24px; max-height: 200px; overflow: auto; }
-.ai-actions { display: flex; gap: 8px; padding: 20px 28px; border-top: 1px solid rgba(255,255,255,.08); }
-.ai-actions button { background: rgba(255,255,255,.06); color: var(--w-main); border: 0;
-  border-radius: 6px; padding: 7px 14px; font-size: 12px; cursor: pointer; }
-.ai-actions button:hover { background: rgba(255,255,255,.12); }
-/* Primary action (Run) = accent button (PrimaryTheme) */
-.ai-actions button#ai-run { background: var(--accent); color: #06222c; font-weight: 600; }
-.ai-actions button#ai-run:hover { background: #2bb8e4; }
+#panes-host { min-width: 0; min-height: 0; }
+.tab-panes { width: 100%; height: 100%; min-width: 0; min-height: 0; }
+.tab-panes.split { display: flex; }
+.terminal-pane { width: 100%; height: 100%; min-width: 0; min-height: 0; overflow: hidden; background: #171a19; border-left: 1px solid transparent; }
+.tab-panes.split .terminal-pane + .terminal-pane { border-left-color: var(--border); }
+.terminal-pane.wterm { width: 100%; max-width: 100%; height: 100% !important; padding: 18px 20px; border-radius: 0; box-shadow: none; overflow: auto; --term-bg: #171a19; --term-fg: #d8ddda; --term-cursor: #a7d2c8; --term-font-family: 'SFMono-Regular', 'SF Mono', Menlo, Monaco, monospace; --term-font-size: 13px; --term-line-height: 1.4; --term-color-0: #232725; --term-color-1: #d9857b; --term-color-2: #8fbd98; --term-color-3: #d4b276; --term-color-4: #7fa7c7; --term-color-5: #b79ac8; --term-color-6: #7eb8ad; --term-color-7: #d8ddda; --term-color-8: #717a75; --term-color-9: #e4968c; --term-color-10: #a1c9a8; --term-color-11: #dfc28d; --term-color-12: #91b6d2; --term-color-13: #c5a9d3; --term-color-14: #91c8bd; --term-color-15: #f3f5f4; }
+.theme-lunix { --shell-bg: #171a19; --bar-bg: #202421; --border: rgba(216,221,218,.1); --muted: #8f9893; --accent: #78b5a8; }
+.theme-lunix .terminal-pane.wterm { background: #171a19; }
+.theme-lunix .terminal-pane.wterm > .term-grid { background: transparent !important; }
+.theme-lunix .tab.active { color: #e5e9e7; background: rgba(255,255,255,.025); }
+body.embedded { grid-template-rows: minmax(0, 1fr); }
+body.embedded #titlebar { display: none; }
+@media (max-width: 640px) { #titlebar { padding-left: 8px; } .tab-panes.split { flex-direction: column; } .tab-panes.split .terminal-pane + .terminal-pane { border-left: 0; border-top: 1px solid var(--border); } }

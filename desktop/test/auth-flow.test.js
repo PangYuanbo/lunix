@@ -5,6 +5,8 @@ const server = fs.readFileSync(require.resolve('../server.js'), 'utf8');
 assert.match(app, /authMethod: 'subscription'/);
 assert.match(app, /openBrowserUrl\(authSession\.authUrl\)/);
 assert.match(app, /providerCode: code\.value\.trim\(\)/);
+assert.doesNotMatch(app, /setTimeout\(r, 3000\)/);
+assert.match(app, /Starting Agent…/);
 assert.match(app, /sessions\.preview\(agentSession\.session\.id/);
 assert.match(app, /localhost\|127/);
 assert.doesNotMatch(app, /lunix\.anthropicKey|sk-ant-/);

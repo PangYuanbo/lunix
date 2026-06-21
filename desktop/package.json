@@ -4,14 +4,20 @@
   "private": true,
   "description": "A lightweight web desktop: shell, dock, window manager, files, terminal, and a cloud browser.",
   "scripts": {
+    "build:assistant": "vite build --config vite.assistant.config.mjs",
     "build:cloud": "vite build --config vite.cloud.config.mjs",
     "start": "node server.js"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
+    "@radix-ui/react-collapsible": "^1.1.14",
+    "@streamdown/cjk": "^1.0.3",
     "gsap": "^3.15.0",
+    "lucide-react": "^1.21.0",
     "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react-dom": "^19.2.7",
+    "streamdown": "^2.5.0",
+    "use-stick-to-bottom": "^1.1.6"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.1",

@@ -1,0 +1,80 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+  <link rel="stylesheet" href="styles.css" />
+  <title>Terminal</title>
+</head>
+<body>
+  <div id="titlebar">
+    <div class="tb-left">
+      <span class="dot"></span>
+      <div id="tabs"></div>
+      <button id="newtab" title="New tab (⌘T)">＋</button>
+    </div>
+    <div class="tb-right">
+      <button id="ai-btn" title="Ask AI (⌘I)">✦ AI</button>
+      <button id="split-btn" title="Split right (⌘D)">⊟</button>
+      <button id="palette-btn" title="Command palette (⌘K)">⌘K</button>
+    </div>
+  </div>
+
+  <div id="panes-host"></div>
+
+  <div id="statusbar">
+    <button class="sb-ic" id="sb-warp" title="Warp AI">✦</button>
+    <button class="sb-ic" id="sb-add" title="New block">+</button>
+    <button class="sb-ic" id="sb-mic" title="Voice">🎙</button>
+    <button class="sb-chip" id="sb-remote" title="Remote control"><span class="sb-dot"></span>/remote-control</button>
+    <button class="sb-chip" id="sb-files" title="File explorer">⊞ File explorer</button>
+    <button class="sb-chip" id="sb-rich" title="Rich input">▭ Rich Input <kbd>^G</kbd></button>
+    <span id="suggest"></span>
+    <span class="grow"></span>
+    <span id="blockcount" class="sb-muted">0 blocks</span>
+    <span class="sb-chip sb-ro" id="sb-cwd">⊟ <span id="cwd">~</span></span>
+    <span class="sb-chip sb-ro" id="sb-branch">⑂ <span id="branch">main</span></span>
+  </div>
+
+  <!-- Command palette -->
+  <div id="palette" class="hidden">
+    <div class="palette-box">
+      <input id="palette-input" placeholder="Type a command, workflow, or action…" autocomplete="off" />
+      <ul id="palette-list"></ul>
+    </div>
+  </div>
+
+  <!-- AI panel -->
+  <div id="ai" class="hidden">
+    <div class="ai-box">
+      <div class="ai-head">✦ Ask Warp AI <span id="ai-src"></span></div>
+      <textarea id="ai-input" placeholder="Describe what you want to do… (⏎ to ask)"></textarea>
+      <pre id="ai-out"></pre>
+      <div class="ai-actions">
+        <button id="ai-insert">Insert</button>
+        <button id="ai-run">Run</button>
+        <button id="ai-save">Save as workflow</button>
+        <button id="ai-close">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Web bridge: defines window.warp/window.crates over HTTP+SSE when not in Electron; no-ops under preload. -->
+  <script src="web/bridge.js"></script>
+  <!-- xterm.js retired: the terminal is now Warp's own engine (vte parser -> Grid<Cell> -> GPU). -->
+  <!-- warpui_core GPU renderer (from-scratch WebGL2 terminal renderer) -->
+  <script src="src/crates/warpui_core/glyph_atlas.js"></script>
+  <script src="src/crates/warpui_core/gpu_terminal.js"></script>
+  <!-- Warp's own terminal engine (replaces xterm.js): vte parser -> Grid<Cell>. -->
+  <script src="src/crates/warp_terminal/vte.js"></script>
+  <script src="src/crates/warp_terminal/term.js"></script>
+  <script src="src/crates/warp_terminal/keys.js"></script>
+  <script src="src/crates/warp_terminal/cli_agent.js"></script>
+  <!-- engine_pane: shared ANSI palette (buildPalette/BASE16) used by block_view; WebGL pane unused at runtime -->
+  <script src="src/crates/warp_terminal/engine_pane.js"></script>
+  <!-- Warp block-card UI (DOM blocks + prompt editor) driven by the engine -->
+  <script src="src/crates/warpui/ansi_html.js"></script>
+  <script src="src/crates/warpui/block_view.js"></script>
+  <script src="renderer.js"></script>
+</body>
+</html>

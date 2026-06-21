@@ -34,7 +34,7 @@ const KEY = process.env.BROWSERBASE_API_KEY || '';
 const PROJECT = process.env.BROWSERBASE_PROJECT_ID || '';
 const HOME_URL = process.env.BROWSER_HOME || 'https://www.google.com';
 const ROOT = __dirname;
-const sessions = new Map(); // sessionId -> { cdp, ps, streams:Set<res>, latest:Buffer|null }
+const sessions = new Map(); // sessionId -> active CDP page + stream state
 
 // --- Browserbase REST ---
 function bb(method, apiPath, bodyObj) {
@@ -86,28 +86,42 @@ async function startSession(width, height, initialUrl) {
   // Discover the page target from CDP itself (the debug API id can lag/mismatch) and attach.
   let pageTarget = targetId;
   try { const tg = await cdp.send('Target.getTargets'); const pt = (tg.targetInfos || []).find((t) => t.type === 'page'); if (pt) pageTarget = pt.targetId; } catch {}
-  const { sessionId: ps } = await cdp.send('Target.attachToTarget', { targetId: pageTarget, flatten: true });
-  const rec = { cdp, ps, streams: new Set(), latest: null };
+  const rec = { cdp, ps: null, targetId: null, streams: new Set(), latest: null, width: w, height: h, targets: [] };
+  const activate = async (targetId) => {
+    if (!targetId || targetId === rec.targetId) return;
+    const { sessionId } = await cdp.send('Target.attachToTarget', { targetId, flatten: true });
+    rec.ps = sessionId; rec.targetId = targetId;
+    rec.targets = rec.targets.filter((id) => id !== targetId).concat(targetId);
+    await cdp.send('Page.enable', {}, sessionId);
+    await cdp.send('Emulation.setDeviceMetricsOverride', { width: rec.width, height: rec.height, deviceScaleFactor: 1, mobile: false }, sessionId);
+    await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 60, maxWidth: rec.width, maxHeight: rec.height, everyNthFrame: 1 }, sessionId);
+  };
   cdp.on((o) => {
     if (o.method === 'Page.screencastFrame') {
+      if (o.sessionId !== rec.ps) return;
       const buf = Buffer.from(o.params.data, 'base64');
       rec.latest = buf;
       for (const res of rec.streams) writeFrame(res, buf);
-      cdp.send('Page.screencastFrameAck', { sessionId: o.params.sessionId }, ps).catch(() => {});
+      cdp.send('Page.screencastFrameAck', { sessionId: o.params.sessionId }, rec.ps).catch(() => {});
+    }
+    if (o.method === 'Target.targetCreated' && o.params.targetInfo.type === 'page') activate(o.params.targetInfo.targetId).catch(() => {});
+    if (o.method === 'Target.targetDestroyed') {
+      rec.targets = rec.targets.filter((id) => id !== o.params.targetId);
+      if (o.params.targetId === rec.targetId) activate(rec.targets.at(-1)).catch(() => {});
     }
   });
-  await cdp.send('Page.enable', {}, ps);
-  await cdp.send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: 1, mobile: false }, ps);
   // Start the screencast on the stable about:blank, THEN navigate — startScreencast fails if issued
   // while the page is mid-navigation; once running it persists across the navigation.
-  await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 60, maxWidth: w, maxHeight: h, everyNthFrame: 1 }, ps);
-  cdp.send('Page.navigate', { url: home }, ps).catch(() => {});
+  await activate(pageTarget);
+  await cdp.send('Target.setDiscoverTargets', { discover: true });
+  cdp.send('Page.navigate', { url: home }, rec.ps).catch(() => {});
   sessions.set(s.id, rec);
   return { sessionId: s.id, home, width: w, height: h };
 }
 
 const readBody = (req) => new Promise((r) => { let d = ''; req.on('data', (c) => (d += c)); req.on('end', () => { try { r(d ? JSON.parse(d) : {}); } catch { r({}); } }); });
 const json = (res, code, obj) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(obj)); };
+const requestCookie = (req, name) => req.headers.cookie?.split(';').map((part) => part.trim().split('=')).find(([key]) => key === name)?.[1];
 const MIME = {
   '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json',
   '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
@@ -154,7 +168,12 @@ const server = http.createServer(async (req, res) => {
     try {
       if (p === '/api/browser/session') {                          // create + screencast
         const { width, height, url } = await readBody(req);
-        return json(res, 200, await startSession(width, height, url));
+        const savedId = requestCookie(req, 'lunix_browser_session');
+        const saved = savedId && sessions.get(savedId);
+        if (saved) return json(res, 200, { sessionId: savedId, home: '', width: saved.width, height: saved.height, reused: true });
+        const session = await startSession(width, height, url);
+        res.setHeader('Set-Cookie', `lunix_browser_session=${session.sessionId}; Path=/; Max-Age=1800; HttpOnly; SameSite=Lax`);
+        return json(res, 200, session);
       }
       if (p === '/api/browser/stream') {                           // live MJPEG: <img src> renders it natively
         const rec = sessions.get(u.searchParams.get('sessionId'));
@@ -182,7 +201,7 @@ const server = http.createServer(async (req, res) => {
       if (p === '/api/browser/resize') {
         const { sessionId, width, height } = await readBody(req); const rec = sessions.get(sessionId);
         if (!rec) return json(res, 404, { error: 'unknown session' });
-        const w = clamp(width, 360, 1600), h = clamp(height, 260, 1200);
+        const w = clamp(width, 360, 1600), h = clamp(height, 260, 1200); rec.width = w; rec.height = h;
         await rec.cdp.send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: 1, mobile: false }, rec.ps);
         await rec.cdp.send('Page.startScreencast', { format: 'jpeg', quality: 60, maxWidth: w, maxHeight: h, everyNthFrame: 1 }, rec.ps);
         return json(res, 200, { ok: true });
@@ -192,6 +211,7 @@ const server = http.createServer(async (req, res) => {
         sessions.delete(sessionId);
         if (rec) { for (const s of rec.streams) try { s.end(); } catch {} try { rec.cdp.close(); } catch {} }
         await bb('POST', `/v1/sessions/${sessionId}`, { projectId: PROJECT, status: 'REQUEST_RELEASE' }).catch(() => {});
+        res.setHeader('Set-Cookie', 'lunix_browser_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax');
         return json(res, 200, { ok: true });
       }
     } catch (e) { return json(res, 500, { error: String((e && e.message) || e) }); }
@@ -233,7 +253,7 @@ const server = http.createServer(async (req, res) => {
 
   // static files
   const fromPlanB = (req.headers.referer || '').includes('/plan-b');
-  const rel = p === '/' ? 'index.html' : /^\/cloud-browser\/?$/.test(p) ? 'cloud-browser/index.html' : /^\/plan-b\/?$/.test(p) ? 'cloud-browser/plan-b.html' : fromPlanB && /^\/(assets|media)\//.test(p) ? `cloud-browser${p}` : decodeURIComponent(p).replace(/^\/+/, '');
+  const rel = p === '/' ? 'index.html' : p === '/favicon.svg' ? 'cloud-browser/favicon.svg' : /^\/cloud-browser\/?$/.test(p) ? 'cloud-browser/index.html' : /^\/plan-b\/?$/.test(p) ? 'cloud-browser/plan-b.html' : fromPlanB && /^\/(assets|media)\//.test(p) ? `cloud-browser${p}` : decodeURIComponent(p).replace(/^\/+/, '');
   const file = path.join(ROOT, rel);
   if (!file.startsWith(ROOT)) { res.writeHead(403); return res.end('forbidden'); }
   fs.readFile(file, (err, buf) => {

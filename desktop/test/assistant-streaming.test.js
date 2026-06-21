@@ -1,0 +1,30 @@
+const assert = require('assert');
+const fs = require('fs');
+
+const app = fs.readFileSync(require.resolve('../app.js'), 'utf8');
+const html = fs.readFileSync(require.resolve('../index.html'), 'utf8');
+
+assert.match(html, /assistant\/assistant\.css/);
+assert.match(html, /assistant\/assistant\.js/);
+assert.match(app, /LunixAssistant\?\.mount\(log\)/);
+assert.match(app, /sessions\.chatSocket\(sessionId\)/);
+assert.match(app, /frame\.type === 'delta'/);
+assert.match(app, /aborted \|\| frame\.preview/);
+assert.match(app, /frame\.type === 'done'/);
+assert.match(app, /frame\.type === 'turn_done'/);
+const doneBranch = app.match(/if \(frame\.type === 'done'\) \{([\s\S]*?)\n      \}/)?.[1] || '';
+assert.doesNotMatch(doneBranch, /finishTurn\(\)/);
+assert.match(app, /JSON\.stringify\(\{ type: 'send', text:/);
+assert.match(app, /pushEvents\(restored\.events, true\)/);
+assert.match(app, /data-new-chat/);
+assert.match(app, /sessions\.start\(agentSession\.agentId\)/);
+assert.match(app, /showLoading\('Starting a new chat'/);
+assert.match(app, /showLoading\('Loading your conversation'/);
+assert.match(app, /input\.disabled = locked/);
+assert.match(app, /lockComposer\(true, true\)/);
+assert.match(app, /Connection timed out/);
+assert.match(app, /showLoading\('Starting Codex'/);
+assert.match(app, /showLoading\('Starting Claude'/);
+assert.doesNotMatch(app, /function bubble\(/);
+assert.doesNotMatch(app, /function paintLog\(/);
+console.log('Assistant Streamdown and WebSocket wiring ok');
