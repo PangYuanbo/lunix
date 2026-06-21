@@ -17,7 +17,8 @@
     const url = new URL(nodusUrl);
     url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
     url.pathname = url.pathname.replace(/\/$/, '') + '/sessions/' + encodeURIComponent(sessionId) + '/terminal';
-    url.search = '?userId=' + encodeURIComponent(userId || 'default');
+    url.searchParams.set('userId', userId || 'default');
+    url.searchParams.set('target', 'workspace');
     return url;
   }
 
