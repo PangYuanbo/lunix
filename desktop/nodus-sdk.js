@@ -78,6 +78,8 @@
         destroy: (sessionId) => req("DELETE", `/sessions/${enc(sessionId)}`),
         events: (sessionId) => req("GET", `/sessions/${enc(sessionId)}/events`),
         diff: (sessionId) => req("GET", `/sessions/${enc(sessionId)}/diff`),
+        ssh: (sessionId) => req("POST", `/sessions/${enc(sessionId)}/ssh`, {}),
+        webIde: (sessionId) => req("POST", `/sessions/${enc(sessionId)}/web-ide`, {}),
         preview: (sessionId, port) => req("POST", `/sessions/${enc(sessionId)}/preview`, { port }),
         sync: (sessionId, knownSourceUuids) => req("POST", `/sessions/${enc(sessionId)}/sync`, { knownSourceUuids }),
         chatSocket: (sessionId) => new WebSocket(wsUrl(`/sessions/${enc(sessionId)}/chat`)),

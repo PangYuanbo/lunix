@@ -721,6 +721,40 @@ const clearRuntimeSession = (provider) => writeCookie(runtimeCookie(provider), '
 let selectedAgentProvider = readCookie(PROVIDER_COOKIE) === 'codex' ? 'codex' : 'claude';
 let agentSession = readRuntimeSession(selectedAgentProvider);
 const agentProviderName = () => selectedAgentProvider === 'codex' ? 'Codex' : 'Claude';
+function openVscodeLauncher() {
+  document.querySelector('[data-vscode-picker]')?.remove();
+  const overlay = document.createElement('div');
+  overlay.dataset.vscodePicker = '';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:4000;background:rgba(30,34,38,.22);display:grid;place-items:start end;padding:42px 14px;';
+  overlay.innerHTML = `<div role="dialog" aria-modal="true" aria-label="Open workspace in VS Code" style="width:300px;background:rgba(252,253,253,.96);border:1px solid rgba(20,28,40,.12);border-radius:14px;padding:12px;box-shadow:0 18px 55px rgba(20,28,40,.2);backdrop-filter:blur(24px);display:grid;gap:8px;"><div style="padding:3px 4px 8px;"><strong style="display:block;font-size:13px;color:#1d1d1f;">Open in VS Code</strong><span style="font-size:11px;color:#777;">Choose how to open this workspace.</span></div><button data-web><b>Web</b><span>Open VS Code in this browser</span></button><button data-desktop><b>Desktop</b><span>Connect with Remote SSH</span></button><div data-error style="font-size:11px;color:#b65347;min-height:14px;padding:0 4px;"></div></div>`;
+  overlay.querySelectorAll('button').forEach((button) => { button.style.cssText = 'border:1px solid #e2e4e5;background:#fff;border-radius:10px;padding:10px 12px;text-align:left;display:grid;gap:2px;color:#242629;cursor:pointer;'; button.querySelector('span').style.cssText = 'font-size:11px;color:#85888b;'; });
+  const error = overlay.querySelector('[data-error]');
+  const sessionId = agentSession?.session?.id;
+  const requireSession = () => { if (sessionId) return true; error.textContent = 'Connect the Agent first.'; return false; };
+  overlay.onclick = (event) => { if (event.target === overlay) overlay.remove(); };
+  overlay.querySelector('[data-web]').onclick = async (event) => {
+    if (!requireSession()) return;
+    const popup = window.open('about:blank', '_blank'); event.currentTarget.disabled = true; event.currentTarget.querySelector('span').textContent = 'Starting workspace IDE…';
+    try { const endpoint = await nodusClient.sessions.webIde(sessionId); if (popup) popup.location.href = endpoint.url; else window.open(endpoint.url, '_blank'); overlay.remove(); }
+    catch (reason) { popup?.close(); error.textContent = reason.message || String(reason); event.currentTarget.disabled = false; event.currentTarget.querySelector('span').textContent = 'Open VS Code in this browser'; }
+  };
+  overlay.querySelector('[data-desktop]').onclick = async (event) => {
+    if (!requireSession()) return;
+    event.currentTarget.disabled = true; event.currentTarget.querySelector('span').textContent = 'Generating Remote SSH connection…';
+    try {
+      const connection = (await nodusClient.sessions.ssh(sessionId)).connection;
+      const alias = `lunix-${sessionId.slice(0, 8)}`, keyName = `${alias}-key`;
+      const config = `Host ${alias}\n  HostName ${connection.host}\n  Port ${connection.port}\n  User ${connection.user}\n  IdentityFile ~/.ssh/${keyName}\n  IdentitiesOnly yes\n  StrictHostKeyChecking accept-new\n`;
+      overlay.firstElementChild.innerHTML = `<div style="padding:3px 4px 6px;"><strong style="display:block;font-size:13px;">VS Code Desktop</strong><span style="font-size:11px;color:#777;">One-time SSH setup for this workspace.</span></div><button data-key>Download private key</button><button data-config>Copy SSH config</button><button data-open>Open VS Code Desktop</button><small style="color:#777;line-height:1.45;padding:2px 4px;">Move the key to <code>~/.ssh/${keyName}</code>, run <code>chmod 600</code>, and add the copied config to <code>~/.ssh/config</code>.</small>`;
+      overlay.querySelectorAll('button').forEach((button) => { button.style.cssText = 'border:1px solid #e2e4e5;background:#fff;border-radius:10px;padding:9px 11px;text-align:left;color:#242629;cursor:pointer;'; });
+      overlay.querySelector('[data-key]').onclick = () => { const url = URL.createObjectURL(new Blob([connection.privateKey], { type: 'application/octet-stream' })); const link = document.createElement('a'); link.href = url; link.download = keyName; link.click(); URL.revokeObjectURL(url); };
+      overlay.querySelector('[data-config]').onclick = async (copyEvent) => { await navigator.clipboard.writeText(config); copyEvent.currentTarget.textContent = 'Copied'; };
+      overlay.querySelector('[data-open]').onclick = () => { location.href = `vscode://vscode-remote/ssh-remote+${encodeURIComponent(alias)}${connection.workspacePath}`; };
+    } catch (reason) { error.textContent = reason.message || String(reason); event.currentTarget.disabled = false; event.currentTarget.querySelector('span').textContent = 'Connect with Remote SSH'; }
+  };
+  document.body.appendChild(overlay);
+}
+
 const AGENT_BROWSER_PROMPT = `\n\nLunix browser workflow:\n- For a web app preview, start the server on 5173, 3000, 4173, 8000, or 8080, bind it to 0.0.0.0 (never 127.0.0.1), and include its localhost URL in your response.\n- For a website the user should open in Lunix's built-in Browser, include exactly: LUNIX_BROWSER_OPEN https://example.com\n- Do not expose cookies or tokens, and do not claim a page works unless you checked it.`;
 
 function renderAgent(root) {
@@ -1194,6 +1228,7 @@ function escapeHtml(s) { return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<
 
 // ---- boot ----
 buildDock();
+document.getElementById('vscode-launcher')?.addEventListener('click', openVscodeLauncher);
 const placeWindow = (win, left, top, width, height) => { win.style.left = `${innerWidth * left}px`; win.style.top = `${innerHeight * top}px`; win.style.width = `${innerWidth * width}px`; win.style.height = `${innerHeight * height}px`; };
 const filesWindow = openApp(GROUP_B.find((app) => app.id === 'files'));
 placeWindow(filesWindow, .29, .42, .42, .39);

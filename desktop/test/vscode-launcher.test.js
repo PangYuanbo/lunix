@@ -1,0 +1,14 @@
+const assert = require('assert');
+const fs = require('fs');
+const app = fs.readFileSync(require.resolve('../app.js'), 'utf8');
+const html = fs.readFileSync(require.resolve('../index.html'), 'utf8');
+const sdk = fs.readFileSync(require.resolve('../nodus-sdk.js'), 'utf8');
+assert.match(html, /id="vscode-launcher"/);
+assert.match(app, /Choose how to open this workspace/);
+assert.match(app, /Open VS Code in this browser/);
+assert.match(app, /Connect with Remote SSH/);
+assert.match(app, /sessions\.webIde\(sessionId\)/);
+assert.match(app, /sessions\.ssh\(sessionId\)/);
+assert.match(app, /vscode:\/\/vscode-remote\/ssh-remote/);
+assert.match(sdk, /webIde: \(sessionId\).*\/web-ide/);
+console.log('VS Code launcher wiring ok');
