@@ -869,6 +869,7 @@ function renderAgent(root) {
       <div style="font-weight:600;color:#24231f;">Connect ${agentProviderName()}</div>
       <div style="font-size:12px;color:#9e9a93;line-height:1.5;">${selectedAgentProvider === 'codex' ? 'Sign in with your ChatGPT subscription using a device code.' : 'Sign in with your Claude subscription using the built-in or external browser.'} No API key is stored in lunix.</div>
       <button data-connect style="border:none;background:#17796d;color:#fff;border-radius:9px;padding:9px;font-size:13px;font-weight:600;cursor:pointer;">Sign in with ${agentProviderName()}</button>
+      <button data-switch-provider style="border:1px solid #d7d2c8;background:#fff;color:#6f685e;border-radius:9px;padding:9px;font-size:13px;cursor:pointer;">Use ${selectedAgentProvider === 'claude' ? 'Codex' : 'Claude'} instead</button>
       <div data-err style="color:#b65347;font-size:12px;min-height:14px;">${errMsg ? escapeHtml(errMsg) : ''}</div>`;
     log.appendChild(card);
     const err = card.querySelector('[data-err]');
@@ -882,6 +883,11 @@ function renderAgent(root) {
       } catch (e) { button.disabled = false; button.textContent = `Sign in with ${agentProviderName()}`; err.textContent = e.message || e; }
     };
     card.querySelector('[data-connect]').onclick = connect;
+    card.querySelector('[data-switch-provider]').onclick = () => {
+      selectedAgentProvider = selectedAgentProvider === 'claude' ? 'codex' : 'claude';
+      writeCookie(PROVIDER_COOKIE, selectedAgentProvider); agentSession = readRuntimeSession(selectedAgentProvider);
+      modelName.textContent = agentProviderName(); booting = true; boot();
+    };
   }
 
   function showDeviceLogin(agentId, authSession) {

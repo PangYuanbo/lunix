@@ -12,5 +12,7 @@ assert.match(app, /confirm\.onclick = async/);
 assert.match(app, /completeAuth\(agentId, authSession\.id, \{\}\)/);
 assert.match(app, /provider: 'codex'/);
 assert.match(app, /lunix_agent_provider/);
+assert.match(app, /data-switch-provider/);
+assert.match(app, /selectedAgentProvider === 'claude' \? 'codex' : 'claude'/);
 assert.match(app, /catch \(e\) \{ authCard\(e\.message \|\| String\(e\)\); \}/);
 console.log('Codex device login wiring ok');
