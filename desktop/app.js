@@ -439,12 +439,52 @@ function renderBrowser(root) {
   const view = root.querySelector('[data-view]'), frame = root.querySelector('[data-frame]');
   const urlIn = root.querySelector('[data-url]'), splash = root.querySelector('[data-splash]'), msg = root.querySelector('[data-msg]');
   let sessionId = null;
-  let liveView = null, debugTimer = null;
   const post = (path, body) => fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
   const size = () => ({ width: Math.max(360, Math.round(view.clientWidth)), height: Math.max(260, Math.round(view.clientHeight)) });
   const fit = (w, h) => { frame.style.width = w + 'px'; frame.style.height = h + 'px'; };
   const mods = (e) => (e.altKey ? 1 : 0) | (e.ctrlKey ? 2 : 0) | (e.metaKey ? 4 : 0) | (e.shiftKey ? 8 : 0);
   const BTN = ['left', 'middle', 'right'];
+  let hosted = null;
+
+  async function connectHosted(connectUrl, width, height) {
+    const ws = new WebSocket(connectUrl); let requestId = 0; const pending = new Map();
+    let pageSession = null, pageTarget = null, targets = [], viewport = { width, height };
+    const send = (method, params, targetSession) => new Promise((resolve, reject) => {
+      const id = ++requestId; pending.set(id, { resolve, reject });
+      const message = { id, method, params: params || {} }; if (targetSession) message.sessionId = targetSession;
+      ws.send(JSON.stringify(message));
+    });
+    const activate = async (targetId) => {
+      if (!targetId || targetId === pageTarget) return;
+      const attached = await send('Target.attachToTarget', { targetId, flatten: true });
+      pageSession = attached.sessionId; pageTarget = targetId; targets = targets.filter((id) => id !== targetId).concat(targetId);
+      await send('Page.enable', {}, pageSession);
+      await send('Emulation.setDeviceMetricsOverride', { ...viewport, deviceScaleFactor: 1, mobile: false }, pageSession);
+      await send('Page.startScreencast', { format: 'jpeg', quality: 60, maxWidth: viewport.width, maxHeight: viewport.height, everyNthFrame: 1 }, pageSession);
+    };
+    ws.onmessage = (event) => {
+      const message = JSON.parse(event.data);
+      if (message.id && pending.has(message.id)) { const request = pending.get(message.id); pending.delete(message.id); message.error ? request.reject(new Error(message.error.message)) : request.resolve(message.result); return; }
+      if (message.method === 'Page.screencastFrame' && message.sessionId === pageSession) {
+        frame.src = 'data:image/jpeg;base64,' + message.params.data;
+        send('Page.screencastFrameAck', { sessionId: message.params.sessionId }, pageSession).catch(() => {});
+      }
+      if (message.method === 'Target.targetCreated' && message.params.targetInfo.type === 'page') activate(message.params.targetInfo.targetId).catch(() => {});
+      if (message.method === 'Target.targetDestroyed') {
+        targets = targets.filter((id) => id !== message.params.targetId);
+        if (message.params.targetId === pageTarget) { pageTarget = null; activate(targets.at(-1)).catch(() => {}); }
+      }
+    };
+    await new Promise((resolve, reject) => { ws.onopen = resolve; ws.onerror = () => reject(new Error('Browser connection failed')); });
+    const found = await send('Target.getTargets'); const page = (found.targetInfos || []).find((target) => target.type === 'page');
+    await activate(page?.targetId); await send('Target.setDiscoverTargets', { discover: true });
+    return {
+      input: (params) => send(params.method, params.params, pageSession),
+      navigate: (url) => send('Page.navigate', { url: /^[a-z]+:\/\//i.test(url) ? url : 'https://' + url }, pageSession),
+      resize: async (nextWidth, nextHeight) => { viewport = { width: nextWidth, height: nextHeight }; await send('Emulation.setDeviceMetricsOverride', { ...viewport, deviceScaleFactor: 1, mobile: false }, pageSession); await send('Page.startScreencast', { format: 'jpeg', quality: 60, maxWidth: nextWidth, maxHeight: nextHeight, everyNthFrame: 1 }, pageSession); },
+      close: () => ws.close(),
+    };
+  }
 
   requestAnimationFrame(() => {
     const { width, height } = size();
@@ -452,14 +492,8 @@ function renderBrowser(root) {
       if (s.error || !s.sessionId) { msg.textContent = s.error ? 'Browser unavailable: ' + s.error : 'Could not start a session.'; return; }
       sessionId = s.sessionId; urlIn.value = s.home || '';
       fit(s.width || width, s.height || height);
-      if (s.liveViewUrl) {
-        liveView = document.createElement('iframe'); liveView.allow = 'clipboard-read; clipboard-write'; liveView.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;background:#fff;';
-        liveView.onload = () => { if (splash.isConnected) { splash.style.opacity = '0'; setTimeout(() => splash.remove(), 400); } };
-        liveView.src = s.liveViewUrl; frame.replaceWith(liveView);
-        debugTimer = setInterval(() => fetch('/api/browser/debug?sessionId=' + encodeURIComponent(sessionId)).then((r) => r.json()).then((d) => {
-          if (d.url) urlIn.value = d.url;
-          if (d.liveViewUrl && liveView.src !== d.liveViewUrl) liveView.src = d.liveViewUrl;
-        }).catch(() => {}), 1500);
+      if (s.connectUrl) {
+        connectHosted(s.connectUrl, s.width || width, s.height || height).then((client) => { hosted = client; if (splash.isConnected) { splash.style.opacity = '0'; setTimeout(() => splash.remove(), 400); } }).catch((e) => { msg.textContent = 'Browser unavailable: ' + e.message; });
       } else {
         frame.addEventListener('load', () => { if (splash.isConnected) { splash.style.opacity = '0'; setTimeout(() => splash.remove(), 400); } }, { once: true });
         frame.src = '/api/browser/stream?sessionId=' + encodeURIComponent(sessionId);
@@ -468,27 +502,27 @@ function renderBrowser(root) {
   });
 
   // ---- input forwarding (coords are 1:1 — the remote viewport equals the <img> size) ----
-  const sendMouse = (type, e, extra) => { if (sessionId) post('/api/browser/input', { sessionId, kind: 'mouse', type, x: Math.round(e.offsetX), y: Math.round(e.offsetY), modifiers: mods(e), ...extra }); };
+  const sendMouse = (type, e, extra) => { if (!sessionId) return; const params = { type, x: Math.round(e.offsetX), y: Math.round(e.offsetY), modifiers: mods(e), ...extra }; hosted ? hosted.input({ method: 'Input.dispatchMouseEvent', params }) : post('/api/browser/input', { sessionId, kind: 'mouse', ...params }); };
   let lastMove = 0;
   frame.addEventListener('mousemove', (e) => { const t = performance.now(); if (t - lastMove < 35) return; lastMove = t; sendMouse('mouseMoved', e, { button: 'none' }); });
   frame.addEventListener('mousedown', (e) => { e.preventDefault(); view.focus(); sendMouse('mousePressed', e, { button: BTN[e.button] || 'left', clickCount: 1 }); });
   frame.addEventListener('mouseup', (e) => { e.preventDefault(); sendMouse('mouseReleased', e, { button: BTN[e.button] || 'left', clickCount: 1 }); });
   frame.addEventListener('contextmenu', (e) => e.preventDefault());
-  view.addEventListener('wheel', (e) => { e.preventDefault(); if (sessionId) post('/api/browser/input', { sessionId, kind: 'mouse', type: 'mouseWheel', x: Math.round(e.offsetX), y: Math.round(e.offsetY), deltaX: e.deltaX, deltaY: e.deltaY, modifiers: mods(e) }); }, { passive: false });
-  const sendKey = (type, e) => { if (sessionId) post('/api/browser/input', { sessionId, kind: 'key', type, key: e.key, code: e.code, text: type === 'keyDown' && e.key.length === 1 ? e.key : '', vk: e.keyCode, modifiers: mods(e) }); };
+  view.addEventListener('wheel', (e) => { e.preventDefault(); if (!sessionId) return; const params = { type: 'mouseWheel', x: Math.round(e.offsetX), y: Math.round(e.offsetY), deltaX: e.deltaX, deltaY: e.deltaY, modifiers: mods(e) }; hosted ? hosted.input({ method: 'Input.dispatchMouseEvent', params }) : post('/api/browser/input', { sessionId, kind: 'mouse', ...params }); }, { passive: false });
+  const sendKey = (type, e) => { if (!sessionId) return; const params = { type, key: e.key, code: e.code, text: type === 'keyDown' && e.key.length === 1 ? e.key : '', unmodifiedText: type === 'keyDown' && e.key.length === 1 ? e.key : '', windowsVirtualKeyCode: e.keyCode, nativeVirtualKeyCode: e.keyCode, modifiers: mods(e) }; hosted ? hosted.input({ method: 'Input.dispatchKeyEvent', params }) : post('/api/browser/input', { sessionId, kind: 'key', type, key: e.key, code: e.code, text: params.text, vk: e.keyCode, modifiers: params.modifiers }); };
   view.addEventListener('keydown', (e) => { if (e.metaKey && e.key === 'v') return; e.preventDefault(); sendKey('keyDown', e); });
   view.addEventListener('keyup', (e) => { e.preventDefault(); sendKey('keyUp', e); });
 
   // ---- address bar + reload + resize ----
-  const go = () => { const url = urlIn.value.trim(); if (url && sessionId) post('/api/browser/navigate', { sessionId, url }); view.focus(); };
-  const navigate = (url) => { if (!url) return; urlIn.value = url; if (sessionId) post('/api/browser/navigate', { sessionId, url }); };
+  const go = () => { const url = urlIn.value.trim(); if (url && sessionId) hosted ? hosted.navigate(url) : post('/api/browser/navigate', { sessionId, url }); view.focus(); };
+  const navigate = (url) => { if (!url) return; urlIn.value = url; if (sessionId) hosted ? hosted.navigate(url) : post('/api/browser/navigate', { sessionId, url }); };
   const onNavigate = (e) => navigate(e.detail);
   window.addEventListener('lunix-browser-navigate', onNavigate);
-  cleanup.set('browser', () => { window.removeEventListener('lunix-browser-navigate', onNavigate); clearInterval(debugTimer); if (!sessionId) return; const b = JSON.stringify({ sessionId }); if (navigator.sendBeacon) navigator.sendBeacon('/api/browser/release', new Blob([b], { type: 'application/json' })); else post('/api/browser/release', { sessionId }); });
+  cleanup.set('browser', () => { window.removeEventListener('lunix-browser-navigate', onNavigate); hosted?.close(); if (!sessionId) return; const b = JSON.stringify({ sessionId }); if (navigator.sendBeacon) navigator.sendBeacon('/api/browser/release', new Blob([b], { type: 'application/json' })); else post('/api/browser/release', { sessionId }); });
   urlIn.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') go(); }); // stopPropagation: don't forward to the page
   root.querySelector('[data-go]').onclick = go;
-  root.querySelector('[data-reload]').onclick = () => { if (sessionId) post('/api/browser/navigate', { sessionId, url: urlIn.value || 'https://www.google.com' }); };
-  let rt; const ro = new ResizeObserver(() => { clearTimeout(rt); rt = setTimeout(() => { if (!sessionId) return; const { width, height } = size(); fit(width, height); post('/api/browser/resize', { sessionId, width, height }); }, 250); });
+  root.querySelector('[data-reload]').onclick = () => { if (sessionId) hosted ? hosted.navigate(urlIn.value || 'https://www.google.com') : post('/api/browser/navigate', { sessionId, url: urlIn.value || 'https://www.google.com' }); };
+  let rt; const ro = new ResizeObserver(() => { clearTimeout(rt); rt = setTimeout(() => { if (!sessionId) return; const { width, height } = size(); fit(width, height); hosted ? hosted.resize(width, height) : post('/api/browser/resize', { sessionId, width, height }); }, 250); });
   ro.observe(view);
 }
 
