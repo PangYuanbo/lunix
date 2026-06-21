@@ -4,7 +4,7 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   root: 'cloud-src',
-  base: '/cloud-browser/',
+  base: './',
   plugins: [react(), tailwindcss()],
   build: {
     outDir: '../cloud-browser',
