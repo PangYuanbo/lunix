@@ -20,13 +20,19 @@ export function eventToUIMessage(event, index = 0) {
       return { id: eventId, role: 'system', parts: [{ type: 'data-status', data: { tone: 'warning', title: 'Session disconnected', detail: text(payload.reason || payload.note) } }] };
     case 'usage_snapshot':
       return { id: eventId, role: 'system', parts: [{ type: 'data-usage', data: payload }] };
+    case 'agent_event':
+      return agentEventUIMessage(payload);
     default:
       return { id: eventId, role: 'system', parts: [{ type: 'data-event', data: { eventType: event.eventType || 'event', payload } }] };
   }
 }
 
 export function eventsToUIMessages(events = []) {
-  return events.map(eventToUIMessage).filter((message) => message.parts.some((part) => part.type !== 'text' || part.text));
+  const messages = new Map();
+  events.map(eventToUIMessage).forEach((message) => {
+    if (message.parts.some((part) => part.type !== 'text' || part.text)) messages.set(message.id, message);
+  });
+  return [...messages.values()];
 }
 
 export function userUIMessage(id, value) {

@@ -31,5 +31,15 @@ const source = fs.readFileSync(require.resolve('../assistant-src/protocol.js'), 
   assert.equal(tool.parts[0].type, 'dynamic-tool');
   assert.equal(tool.parts[0].output, '/workspace');
   assert.equal(protocol.agentEventUIMessage({ id: 'u1', type: 'usage', usage: { input_tokens: 12 } }).parts[0].type, 'data-usage');
+  const restoredTool = protocol.eventToUIMessage({ eventType: 'agent_event', payload: { id: 't2', type: 'tool', name: 'Bash', state: 'output-available', input: { command: 'pwd' }, output: '/workspace' } });
+  assert.equal(restoredTool.id, 'agent-t2');
+  assert.equal(restoredTool.parts[0].type, 'dynamic-tool');
+  assert.equal(restoredTool.parts[0].output, '/workspace');
+  const merged = protocol.eventsToUIMessages([
+    { eventType: 'agent_event', payload: { id: 't3', type: 'tool', name: 'Bash', state: 'input-available' } },
+    { eventType: 'agent_event', payload: { id: 't3', type: 'tool', name: 'Bash', state: 'output-available', output: 'done' } },
+  ]);
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0].parts[0].state, 'output-available');
   console.log('Assistant UIMessage protocol mapping ok');
 })().catch((error) => { console.error(error); process.exitCode = 1; });
