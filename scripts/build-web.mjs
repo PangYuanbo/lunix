@@ -17,5 +17,7 @@ fs.writeFileSync(path.join(out, 'config.js'), `window.__LUNIX=${JSON.stringify({
   terminalUrl: '/terminal/?theme=sand&embed=1',
   browserRelayUrl: process.env.BROWSER_RELAY_URL || 'wss://lunix-browser-relay.yuanbopang.workers.dev',
 })};\n`);
+const indexPath = path.join(out, 'index.html');
+fs.writeFileSync(indexPath, fs.readFileSync(indexPath, 'utf8').replace('./app.js', `./app.js?v=${Date.now()}`).replace('./nodus-sdk.js', `./nodus-sdk.js?v=${Date.now()}`));
 fs.writeFileSync(path.join(out, 'vercel.json'), JSON.stringify({ cleanUrls: true, trailingSlash: false }, null, 2));
 console.log(`web build → ${out}`);
