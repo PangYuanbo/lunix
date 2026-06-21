@@ -1,0 +1,165 @@
+:root {
+  --lunix-accent: #0a84ff;
+  --lunix-ink: #1d1d1f;
+  --lunix-line: rgba(20, 28, 40, .1);
+  --lunix-glass: rgba(250, 252, 253, .72);
+}
+
+html, body { background: #cde4ee !important; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, sans-serif !important; }
+
+.lunix-desktop-shell {
+  background-color: #cde4ee !important;
+  background-image:
+    radial-gradient(circle at 10% 78%, rgba(104, 218, 185, .82), transparent 34%),
+    radial-gradient(circle at 88% 18%, rgba(114, 184, 244, .82), transparent 40%),
+    radial-gradient(circle at 55% 112%, rgba(189, 161, 235, .76), transparent 38%),
+    linear-gradient(135deg, #e9f4f2 0%, #d5ece8 42%, #c4def3 100%) !important;
+  background-size: auto !important;
+}
+
+.lunix-desktop-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(115deg, rgba(255,255,255,.22), transparent 48%);
+}
+
+.lunix-desktop-topbar {
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  height: 32px !important;
+  padding: 0 14px;
+  background: rgba(250, 253, 254, .5);
+  border-bottom: 1px solid rgba(255,255,255,.38);
+  -webkit-backdrop-filter: blur(28px) saturate(1.35);
+  backdrop-filter: blur(28px) saturate(1.35);
+  pointer-events: auto !important;
+}
+
+.lunix-desktop-brand { display: flex; align-items: center; gap: 18px; }
+.lunix-desktop-brand > button { display: flex; align-items: center; gap: 8px; min-height: 28px; padding: 0; border: 0; background: transparent; color: var(--lunix-ink); }
+.lunix-desktop-brand > button strong { font-size: 12px; font-weight: 650; }
+.lunix-menu-mark { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 5px; background: #202124; color: #fff; font-size: 10px; font-weight: 700; }
+.lunix-system-menu { display: flex; gap: 17px; color: #202124; font-size: 11px; }
+.lunix-desktop-status { gap: 13px !important; color: #232426; font-size: 11px; }
+.lunix-runtime-pill { display: flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: 8px; background: rgba(255,255,255,.5); }
+.lunix-runtime-pill i { width: 6px; height: 6px; border-radius: 50%; background: #30c765; box-shadow: 0 0 0 3px rgba(48,199,101,.12); }
+.lunix-desktop-surface { padding: 52px 28px 94px !important; }
+
+.lunix-desktop-files {
+  position: absolute;
+  z-index: 2;
+  top: 58px;
+  right: 22px;
+  display: grid;
+  grid-template-columns: repeat(2, 84px);
+  gap: 16px 10px;
+  width: 178px;
+}
+.lunix-desktop-file {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 6px 4px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(20,35,50,.5);
+}
+.lunix-desktop-file:hover, .lunix-desktop-file:focus { background: rgba(255,255,255,.2); outline: 1px solid rgba(255,255,255,.28); }
+.lunix-desktop-file > span { display: block; width: 42px; height: 42px; color: rgba(255,255,255,.96); filter: drop-shadow(0 5px 8px rgba(29,50,69,.22)); }
+.lunix-desktop-file svg { width: 100%; height: 100%; }
+.lunix-desktop-file strong { width: 100%; overflow: hidden; color: #fff; font-size: 11px; font-weight: 560; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
+.lunix-desktop-files-status { grid-column: 1 / -1; padding: 8px 10px; border-radius: 9px; background: rgba(255,255,255,.3); color: rgba(20,35,50,.68); font-size: 10px; text-align: center; backdrop-filter: blur(18px); }
+.lunix-desktop-files.is-drop-target { min-height: 120px; padding: 10px; border: 1px dashed rgba(255,255,255,.72); border-radius: 14px; background: rgba(255,255,255,.16); backdrop-filter: blur(18px); }
+
+.lunix-desktop-window {
+  background: rgba(249, 252, 253, .76) !important;
+  border: 1px solid rgba(25, 37, 51, .1) !important;
+  border-radius: 15px !important;
+  -webkit-backdrop-filter: blur(34px) saturate(1.28) !important;
+  backdrop-filter: blur(34px) saturate(1.28) !important;
+  box-shadow: 0 24px 62px rgba(31, 49, 68, .22), 0 3px 10px rgba(31, 49, 68, .1) !important;
+}
+
+.lunix-desktop-window.active {
+  border-color: rgba(255,255,255,.72) !important;
+  box-shadow: 0 30px 76px rgba(31, 49, 68, .28), 0 3px 12px rgba(31, 49, 68, .12) !important;
+}
+
+.lunix-window-titlebar {
+  flex-basis: 24px !important;
+  height: 24px !important;
+  grid-template-columns: 58px minmax(0,1fr) 58px !important;
+  background: rgba(250, 252, 253, .58) !important;
+  border-bottom: 1px solid rgba(20, 28, 40, .055) !important;
+}
+
+.lunix-window-controls { gap: 5px !important; padding-left: 10px !important; }
+.lunix-window-controls button { width: 8px !important; height: 8px !important; box-shadow: inset 0 0 0 .5px rgba(0,0,0,.16); }
+.lunix-window-title { gap: 5px !important; color: rgba(29,29,31,.72) !important; font-size: 10px !important; }
+.lunix-window-title span { width: 12px !important; height: 12px !important; }
+.lunix-window-title strong { font-weight: 620 !important; }
+.lunix-window-actions { gap: 1px !important; padding-right: 7px !important; }
+.lunix-window-icon-button { width: 19px !important; height: 19px !important; border-radius: 6px !important; }
+.lunix-window-icon-button:first-child { display: none !important; }
+.lunix-window-icon-button svg { width: 12px !important; height: 12px !important; }
+.lunix-window-body { background: rgba(255,255,255,.42) !important; }
+.lunix-desktop-window[data-app="preview"] .lunix-finder-empty { background: #fbfcfd; color: #84878c !important; font-size: 12px; }
+
+#dock { bottom: 14px !important; }
+#dock > div {
+  height: 54px !important;
+  gap: 5px !important;
+  padding: 0 9px !important;
+  border: 1px solid rgba(255,255,255,.62) !important;
+  border-radius: 18px !important;
+  background: rgba(247, 250, 252, .62) !important;
+  -webkit-backdrop-filter: blur(26px) saturate(1.35) !important;
+  backdrop-filter: blur(26px) saturate(1.35) !important;
+  box-shadow: 0 18px 44px rgba(33, 47, 64, .2), inset 0 1px rgba(255,255,255,.55) !important;
+}
+#dock > div > div { gap: 5px !important; }
+#dock button { width: 38px !important; height: 38px !important; border-radius: 11px !important; color: #34383d !important; }
+#dock button:hover { background: rgba(255,255,255,.55) !important; transform: translateY(-3px); }
+#dock button svg { width: 19px !important; height: 19px !important; }
+#dock > div > div:last-child button:first-child { color: #7558d9 !important; background: rgba(255,255,255,.35) !important; }
+
+.lunix-agent-workspace { width: 38%; min-width: 340px; flex: none; overflow: hidden; border-left: 1px solid #e5e5e3; display: grid; grid-template-rows: minmax(0, 1fr) 34%; background: rgba(255,255,255,.94); transition: width .18s ease,min-width .18s ease; }
+.lunix-agent-workspace.closed { width: 0; min-width: 0; border-left: 0; }
+.lunix-agent-workspace-main,.lunix-agent-runtime-tools { min-height: 0; display: flex; flex-direction: column; }
+.lunix-agent-runtime-tools { border-top: 1px solid #e5e5e3; }
+.lunix-agent-workspace-tabs,.lunix-agent-runtime-tabs { display: flex; align-items: stretch; gap: 18px; min-height: 42px; padding: 0 14px; border-bottom: 1px solid #ececea; }
+.lunix-agent-workspace-tabs button,.lunix-agent-runtime-tabs button { position: relative; border: 0; background: transparent; padding: 0; color: #66645f; font: 12px/42px inherit; cursor: pointer; }
+.lunix-agent-workspace-tabs button.active,.lunix-agent-runtime-tabs button.active { color: #24231f; font-weight: 620; }
+.lunix-agent-workspace-tabs button.active::after,.lunix-agent-runtime-tabs button.active::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: #2e2d2a; }
+.lunix-agent-workspace-tools { display: flex; gap: 8px; padding: 9px 12px; border-bottom: 1px solid #efefed; }
+.lunix-agent-workspace-tools input,.lunix-agent-workspace-tools button { height: 34px; border: 1px solid #dededb; border-radius: 8px; background: #fff; color: #4b4944; font: 12px inherit; }
+.lunix-agent-workspace-tools input { min-width: 0; flex: 1; padding: 0 10px; outline: none; }
+.lunix-agent-workspace-tools button { padding: 0 12px; }
+.lunix-agent-workspace-body,.lunix-agent-runtime-body { flex: 1; min-height: 0; overflow: hidden; }
+.lunix-agent-changes-view { display: flex; flex-direction: column; height: 100%; min-width: 0; }
+.lunix-agent-change-list { max-height: 43%; overflow: auto; padding: 7px; border-bottom: 1px solid #ececea; }
+.lunix-agent-change-list button { width: 100%; border: 0; background: transparent; border-radius: 6px; padding: 7px 8px; display: flex; align-items: center; gap: 7px; text-align: left; color: #3b3832; cursor: pointer; font-size: 12px; }
+.lunix-agent-change-list button.active,.lunix-agent-change-list button:hover { background: #f1f1ef; }
+.lunix-agent-diff { margin: 0; flex: 1; overflow: auto; padding: 12px 14px; background: #fff; color: #413d36; font: 11px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace; white-space: pre; }
+.lunix-agent-workspace-empty,.lunix-agent-runtime-empty { height: 100%; display: grid; place-content: center; justify-items: center; gap: 10px; padding: 20px; color: #85827c; font-size: 12px; text-align: center; }
+.lunix-agent-workspace-empty button { border: 0; border-radius: 8px; background: #f5f5f3; padding: 7px 11px; color: #3c3b37; cursor: pointer; }
+.lunix-agent-runtime-body iframe { width: 100%; height: 100%; border: 0; display: block; background: #f7f5f0; }
+.lunix-agent-ports { padding: 14px; color: #56534e; font-size: 12px; }
+.lunix-agent-ports > div { display: flex; align-items: center; justify-content: space-between; }
+.lunix-agent-ports button { border: 0; border-radius: 8px; background: #f5f5f3; padding: 7px 10px; color: #3c3b37; }
+.lunix-agent-ports p { margin: 12px 0 0; height: 58px; display: grid; place-items: center; border: 1px solid #eeeeeb; border-radius: 9px; color: #aaa69f; }
+
+@media (max-width: 760px) {
+  .lunix-system-menu, .lunix-runtime-pill { display: none; }
+  .lunix-desktop-topbar { top: 0 !important; left: 0 !important; right: 0 !important; padding: 0 10px; }
+  .lunix-desktop-surface { padding-top: 42px !important; }
+  .lunix-desktop-files { display: none; }
+  .lunix-desktop-window.is-mobile-window .lunix-window-titlebar { height: calc(44px + env(safe-area-inset-top)) !important; flex-basis: calc(44px + env(safe-area-inset-top)) !important; }
+}

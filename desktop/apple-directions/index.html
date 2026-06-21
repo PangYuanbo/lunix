@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Five compact Liquid Glass title bar directions for the Lunix desktop." />
+  <title>Lunix — Liquid Glass Chrome Directions</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body data-direction="compact">
+  <aside class="chooser" aria-label="Design directions">
+    <div class="chooser-brand"><span class="brand-mark">L</span><div><strong>Liquid Glass</strong><small>Compact window chrome</small></div></div>
+    <div class="direction-list" role="tablist">
+      <button class="direction active" data-value="compact" role="tab" aria-selected="true"><span>01</span><div><strong>Compact Center</strong><small>Classic Mac, tightened</small></div></button>
+      <button class="direction" data-value="leading" role="tab" aria-selected="false"><span>02</span><div><strong>Leading Toolbar</strong><small>Finder-like productivity</small></div></button>
+      <button class="direction" data-value="floating" role="tab" aria-selected="false"><span>03</span><div><strong>Floating Glass</strong><small>Chrome becomes an overlay</small></div></button>
+      <button class="direction" data-value="minimal" role="tab" aria-selected="false"><span>04</span><div><strong>Content First</strong><small>Ultra-thin and borderless</small></div></button>
+      <button class="direction" data-value="fused" role="tab" aria-selected="false"><span>05</span><div><strong>Fused Chrome</strong><small>Title and tools become one</small></div></button>
+    </div>
+    <div class="chooser-note"><span>Keys</span><kbd>1</kbd>–<kbd>5</kbd> switch directions</div>
+  </aside>
+
+  <main class="presentation">
+    <header class="review-bar">
+      <div><span class="review-index">01 / 05</span><strong class="review-title">Compact Center</strong><p class="review-copy">The original Liquid Glass direction with a tighter, more balanced macOS title bar.</p></div>
+      <div class="review-tags"><span>Liquid Glass</span><span>28–32 px chrome</span><span>Static concept</span></div>
+    </header>
+
+    <section class="desktop-frame" aria-label="Lunix desktop concept">
+      <div class="wallpaper" aria-hidden="true"><i></i><i></i><i></i></div>
+      <div class="menu-bar">
+        <div class="menu-left"><b class="mini-logo">L</b><strong>Lunix</strong><span>File</span><span>Edit</span><span>View</span><span>Window</span></div>
+        <div class="menu-right"><span class="runtime-pill"><i></i>3 runtimes live</span><span>⌁</span><span>◔</span><time>9:41</time></div>
+      </div>
+
+      <nav class="stage-strip" aria-label="Recent spaces">
+        <button class="stage-thumb active"><span class="stage-preview agent-preview"></span><small>Build</small></button>
+        <button class="stage-thumb"><span class="stage-preview browser-preview"></span><small>Research</small></button>
+        <button class="stage-thumb"><span class="stage-preview files-preview"></span><small>Files</small></button>
+      </nav>
+
+      <article class="window agent-window active-window">
+        <div class="titlebar"><div class="traffic"><i></i><i></i><i></i></div><div class="window-title"><span class="symbol">✦</span><strong>Agent</strong><small>runtime</small></div><div class="toolbar"><button>＋</button><button>···</button></div></div>
+        <div class="agent-layout">
+          <aside class="agent-sidebar">
+            <div class="sidebar-label">Today</div>
+            <button class="selected"><span>✦</span><div><strong>Build analytics view</strong><small>Claude Code · live</small></div></button>
+            <button><span>⌘</span><div><strong>Runtime architecture</strong><small>12 minutes ago</small></div></button>
+            <div class="sidebar-label">Runtimes</div>
+            <button><span class="dot agent-dot"></span><div><strong>Agent</strong><small>Claude · healthy</small></div></button>
+            <button><span class="dot workspace-dot"></span><div><strong>Workspace</strong><small>lunix-mono · healthy</small></div></button>
+            <button><span class="dot browser-dot"></span><div><strong>Browser</strong><small>San Francisco · ready</small></div></button>
+          </aside>
+          <section class="conversation">
+            <div class="conversation-head"><div><small>ACTIVE TASK</small><h2>Build a small analytics dashboard.</h2></div><span class="live-badge"><i></i>Running</span></div>
+            <div class="message user-message">Use the workspace data and open the result in Preview.</div>
+            <div class="message agent-message"><div class="avatar">✦</div><div><strong>Claude Code</strong><p>I’ll inspect the project, update the dashboard, and expose the local app when it is ready.</p><div class="steps"><span class="done">✓ Read project</span><span class="done">✓ Updated charts</span><span class="working">◌ Starting preview</span></div></div></div>
+            <div class="composer"><span>⌘</span><p>Ask the agent or describe the next step…</p><button>↑</button></div>
+          </section>
+        </div>
+      </article>
+
+      <article class="window preview-window">
+        <div class="titlebar"><div class="traffic"><i></i><i></i><i></i></div><div class="window-title"><span class="symbol">▧</span><strong>Preview</strong><small>localhost:5173</small></div><div class="toolbar"><button>↗</button><button>···</button></div></div>
+        <div class="browser-bar"><button>‹</button><button>›</button><div><i></i>preview.lunix.local</div><button>↻</button></div>
+        <div class="dashboard">
+          <header><div><small>WORKSPACE ACTIVITY</small><h3>Runtime overview</h3></div><button>This week⌄</button></header>
+          <div class="metrics"><div><small>Tasks</small><strong>128</strong><span>+18%</span></div><div><small>Runs</small><strong>42</strong><span>+7%</span></div><div><small>Success</small><strong>96.4%</strong><span>+2.1%</span></div></div>
+          <div class="chart"><div class="chart-grid"></div><svg viewBox="0 0 500 150" preserveAspectRatio="none"><path d="M0 126 C55 118 65 80 118 91 S190 55 238 70 S315 22 365 42 S435 20 500 12"/><path class="fill" d="M0 126 C55 118 65 80 118 91 S190 55 238 70 S315 22 365 42 S435 20 500 12 L500 150 L0 150Z"/></svg></div>
+        </div>
+      </article>
+
+      <article class="window files-window">
+        <div class="titlebar"><div class="traffic"><i></i><i></i><i></i></div><div class="window-title"><span class="symbol">▤</span><strong>Workspace</strong><small>lunix-mono</small></div><div class="toolbar"><button>⌕</button><button>···</button></div></div>
+        <div class="files-body"><aside><strong>Favorites</strong><span class="selected">▧ Project</span><span>⌂ Home</span><span>↓ Downloads</span><strong>Runtimes</strong><span>✦ Agent</span><span>▣ Browser</span></aside><section><div class="file-head"><span>Name</span><span>Kind</span></div><div class="file-row folder"><span>▤ desktop</span><small>Folder</small></div><div class="file-row folder"><span>▤ terminal</span><small>Folder</small></div><div class="file-row selected"><span>▧ README.md</span><small>Markdown</small></div><div class="file-row"><span>▧ package.json</span><small>JSON</small></div></section></div>
+      </article>
+
+      <div class="dock" aria-label="Dock">
+        <button><span>⌂</span><small>Home</small></button><button><span>▤</span><small>Files</small></button><button class="running"><span>✦</span><small>Agent</small></button><button class="running"><span>▣</span><small>Browser</small></button><button><span>›_</span><small>Terminal</small></button><button><span>▧</span><small>Preview</small></button><i></i><button><span>⚙</span><small>Settings</small></button><button><span>⌫</span><small>Trash</small></button>
+      </div>
+    </section>
+
+    <footer class="direction-summary">
+      <div><span>Visual thesis</span><strong class="summary-thesis">Liquid materials make distributed compute feel close and tangible.</strong></div>
+      <div><span>Best for</span><strong class="summary-best">A premium consumer OS with strong Apple identity.</strong></div>
+      <div><span>Trade-off</span><strong class="summary-tradeoff">Blur and depth require careful native-shell implementation.</strong></div>
+    </footer>
+  </main>
+  <script src="./app.js"></script>
+</body>
+</html>

@@ -2,8 +2,8 @@ const assert = require('assert');
 const fs = require('fs');
 const build = fs.readFileSync(require.resolve('../../scripts/build-web.mjs'), 'utf8');
 
-assert.match(build, /terminalUrl: '\/terminal\/\?theme=sand&embed=1'/);
-assert.match(build, /\['web', 'src'\]/);
+assert.match(build, /terminalUrl: '\/terminal\/\?theme=lunix&embed=1'/);
+assert.match(build, /\['web', 'dist'\]/);
 assert.match(build, /web-api/);
 assert.match(build, /browserRelayUrl/);
 assert.match(build, /app\.js\?v=/);

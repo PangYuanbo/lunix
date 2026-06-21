@@ -23,24 +23,28 @@
       .lunix-wordmark { font-weight: 600; font-size: 18px; letter-spacing: -0.01em; color: #24231f; line-height: 24px; }
       .lunix-wordmark b { color: #17796d; font-weight: 600; }
     </style>
+    <link rel="stylesheet" href="./content-first.css" />
+    <link rel="stylesheet" href="./assistant/assistant.css" />
   </head>
   <body>
     <div class="root">
       <main class="lunix-desktop-shell">
         <header class="lunix-desktop-topbar">
           <div class="lunix-desktop-brand">
-            <button type="button" aria-label="lunix" title="lunix" style="min-height:44px;padding:0;background:none;border:none;cursor:pointer;">
-              <span class="lunix-wordmark">lu<b>n</b>ix</span>
+            <button type="button" aria-label="Lunix" title="Lunix">
+              <span class="lunix-menu-mark">L</span><strong>Lunix</strong>
             </button>
+            <nav class="lunix-system-menu" aria-label="Application menu"><span>File</span><span>Edit</span><span>View</span><span>Window</span></nav>
           </div>
-          <div class="lunix-desktop-status"><div class="flex items-center gap-2" style="min-width:0;"></div></div>
+          <div class="lunix-desktop-status"><span class="lunix-runtime-pill"><i></i>Local renderer</span><span>⌁</span><span>◔</span></div>
         </header>
-        <section class="lunix-desktop-surface" id="surface"></section>
+        <section class="lunix-desktop-surface" id="surface"><div class="lunix-desktop-files" id="desktop-files" aria-label="Workspace Desktop files"></div></section>
         <div id="dock"></div>
       </main>
     </div>
     <script src="/config.js"></script>
     <script src="./nodus-sdk.js"></script>
+    <script src="./assistant/assistant.js"></script>
     <script src="./app.js"></script>
   </body>
 </html>
