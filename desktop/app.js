@@ -401,6 +401,17 @@ function renderPreview(root) {
   root.style.background = '#171717';
   root.innerHTML = '';
   if (!previewTarget) { root.innerHTML = '<div class="lunix-finder-empty" style="height:100%;display:grid;place-items:center;color:#aaa;">Select a file in Files, then press Space.</div>'; return; }
+  if (previewTarget.url) {
+    root.style.background = '#fff';
+    const frame = document.createElement('iframe');
+    frame.src = previewTarget.url;
+    frame.title = previewTarget.name || 'Web preview';
+    frame.allow = 'clipboard-read; clipboard-write';
+    frame.referrerPolicy = 'no-referrer';
+    frame.style.cssText = 'width:100%;height:100%;border:0;display:block;background:#fff;';
+    root.appendChild(frame);
+    return;
+  }
   const { mountId, path: filePath, name } = previewTarget;
   const ext = (name.split('.').pop() || '').toLowerCase();
   const url = mountId === 'local' ? '/api/local/raw?path=' + encodeURIComponent(filePath) : null;
@@ -417,6 +428,14 @@ function renderPreview(root) {
   else if (ext === 'md' || textExt.includes(ext)) fetch(url).then((r) => r.text()).then((text) => showText(root, text, ext === 'md'));
   else if (ext === 'pdf') root.innerHTML = `<iframe src="${url}" title="${escapeHtml(name)}" style="${center};background:white;"></iframe>`;
   else root.innerHTML = '<div class="lunix-finder-empty" style="height:100%;display:grid;place-items:center;color:#aaa;">No safe browser preview for this file type.</div>';
+}
+
+function openRuntimePreview(url, port) {
+  const parsed = new URL(url, location.href);
+  if (!/^https?:$/.test(parsed.protocol)) throw new Error('Preview URL must use HTTP or HTTPS.');
+  previewTarget = { url: parsed.href, name: port ? `Web preview on port ${port}` : 'Web preview' };
+  const win = openApp(GROUP_B.find((app) => app.id === 'preview'));
+  renderPreview(win.querySelector('.lunix-window-content'));
 }
 
 function showText(root, text, markdown) { root.innerHTML = markdown ? `<article class="lunix-preview-markdown">${markdownHtml(text)}</article>` : `<pre class="lunix-preview-text">${escapeHtml(text)}</pre>`; }
@@ -749,8 +768,8 @@ function renderAgent(root) {
     if (!match || !agentSession) return;
     try {
       const preview = await nodusClient.sessions.preview(agentSession.session.id, Number(match[1]));
-      mountAssistant().add({ id: `preview-${key}`, role: 'system', parts: [{ type: 'data-status', data: { title: 'Preview ready', detail: `Port ${preview.port} is available.`, tone: 'success', actionLabel: 'Open preview', onAction: () => openBrowserUrl(preview.url) } }] });
-      openBrowserUrl(preview.url);
+      mountAssistant().add({ id: `preview-${key}`, role: 'system', parts: [{ type: 'data-status', data: { title: 'Preview ready', detail: `Port ${preview.port} is available.`, tone: 'success', actionLabel: 'Open preview', onAction: () => openRuntimePreview(preview.url, preview.port) } }] });
+      openRuntimePreview(preview.url, preview.port);
     } catch (error) { mountAssistant().add(statusMessage('Preview unavailable', error.message || String(error), 'warning')); }
   }
   async function pushEvents(events, replace = false) {
@@ -793,7 +812,7 @@ function renderAgent(root) {
       let frame; try { frame = JSON.parse(event.data); } catch { return; }
       lastServerFrameAt = Date.now();
       if (frame.type === 'ready') { clearTimeout(chatReadyTimer); chatReadyTimer = null; socketReady = true; statusEl.textContent = `${selectedAgentProvider} · live`; hideLoading(); return; }
-      if (frame.type === 'status') { mountAssistant().setBusy(Boolean(frame.busy)); if (frame.busy) lockComposer(true, true); else if (sending) finishTurn(); return; }
+      if (frame.type === 'status') { mountAssistant().setBusy(Boolean(frame.busy)); if (frame.busy) { lockComposer(true, true); if (frame.activity) mountAssistant().setTask({ title: 'Agent is working', detail: frame.activity, tone: 'working', actions: false, elapsed: elapsedLabel(Date.now() - taskStartedAt), onReconnect: reconnectTask, onStop: stopTask }); } else if (sending) finishTurn(); return; }
       if (frame.type === 'delta') {
         if (aborted || frame.preview) return;
         lastProgressAt = Date.now();
