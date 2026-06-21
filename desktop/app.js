@@ -844,8 +844,8 @@ function renderAgent(root) {
     if (elapsed < 8000) detail = 'Understanding the request and preparing the workspace…';
     else if (elapsed < 30000) detail = 'Working in the runtime. Complex tasks can take a little while…';
     else detail = 'Still running. You can safely wait or stop the task.';
-    if (progressSilent >= 30000) { title = 'No recent output'; detail = connectionSilent < 10000 ? 'The service is connected, but the agent has not produced new output for 30 seconds.' : 'No server update has arrived recently.'; tone = 'warning'; actions = true; }
-    if (progressSilent >= 90000) { title = 'Agent may be stalled'; detail = connectionSilent < 10000 ? 'The service is online, but the runtime has produced no new output for 90 seconds.' : 'The connection and runtime may be unavailable.'; tone = 'warning'; actions = true; }
+    if (connectionSilent >= 10000) { title = 'Connection interrupted'; detail = 'No server update has arrived recently.'; tone = 'warning'; actions = true; }
+    else if (progressSilent >= 30000) { title = 'Agent is still working'; detail = 'The runtime is connected. This step has not produced new visible output yet.'; }
     mountAssistant().setTask({ title, detail, tone, actions, elapsed: elapsedLabel(elapsed), onReconnect: reconnectTask, onStop: stopTask });
   };
   const startTaskState = () => { taskStartedAt = lastServerFrameAt = lastProgressAt = Date.now(); reconnectAttempts = 0; clearInterval(taskTimer); taskTimer = setInterval(updateTaskState, 1000); updateTaskState(); };
