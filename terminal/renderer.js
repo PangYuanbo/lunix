@@ -10,7 +10,8 @@ let activePane;
 let nextId = 0;
 
 if (embedded) document.body.classList.add('embedded');
-if (params.get('theme') === 'sand') document.body.classList.add('theme-sand');
+const theme = params.get('theme');
+if (theme) document.body.classList.add(`theme-${theme}`);
 
 const tabsEl = document.getElementById('tabs');
 const host = document.getElementById('panes-host');

@@ -23,6 +23,7 @@ assert.match(renderer, /window\.warp\.spawn\(id, 80, 24\)/);
 assert.match(renderer, /window\.warp\.resize\(id, term\.cols, term\.rows\)/);
 assert.match(renderer, /requestAnimationFrame\(\(\) => requestAnimationFrame/);
 assert.match(renderer, /pending: \[\]/);
+assert.match(renderer, /classList\.add\(`theme-\$\{theme\}`\)/);
 assert.match(renderer, /for \(const data of pane\.pending\.splice\(0\)\) writePane/);
 assert.doesNotMatch(bridge, /status: 'ready'/);
 assert.match(desktop, /theme=lunix&embed=1/);
