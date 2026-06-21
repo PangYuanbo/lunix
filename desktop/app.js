@@ -95,6 +95,7 @@ const MOUNTS = [
 ];
 
 const GROUP_A = [{ id: 'storyboard', label: 'Storyboard', icon: I.storyboard }];
+const WELCOME_APP = { id: 'welcome', label: 'start', icon: I.terminal };
 const GROUP_B = [
   { id: 'browser', label: 'Browser', icon: I.browser },
   { id: 'terminal', label: 'Terminal', icon: I.terminal, accent: true },
@@ -191,8 +192,8 @@ function openApp(app) {
   w.className = 'lunix-desktop-window active';
   w.dataset.app = app.id;
   w.setAttribute('aria-label', app.label);
-  const desiredWidth = app.id === 'browser' ? 1040 : app.id === 'preview' ? 900 : app.id === 'files' ? 840 : app.id === 'terminal' ? 900 : app.id === 'memo' ? 760 : app.id === 'agent' ? 760 : 620;
-  const desiredHeight = app.id === 'browser' ? 720 : app.id === 'preview' ? 650 : app.id === 'files' ? 560 : app.id === 'terminal' ? 600 : app.id === 'agent' ? 580 : 480;
+  const desiredWidth = app.id === 'browser' ? 1040 : app.id === 'welcome' ? 880 : app.id === 'preview' ? 900 : app.id === 'files' ? 840 : app.id === 'terminal' ? 900 : app.id === 'memo' ? 760 : app.id === 'agent' ? 760 : 620;
+  const desiredHeight = app.id === 'browser' ? 720 : app.id === 'welcome' ? 590 : app.id === 'preview' ? 650 : app.id === 'files' ? 560 : app.id === 'terminal' ? 600 : app.id === 'agent' ? 580 : 480;
   const width = Math.min(desiredWidth, Math.max(360, innerWidth - 24));
   const height = Math.min(desiredHeight, Math.max(280, innerHeight - 76));
   const left = Math.max(12, Math.min(120 + idx * 34, innerWidth - width - 12));
@@ -321,6 +322,7 @@ function makeResizable(win, handle) {
 
 // ---- app content renderers ----
 function renderApp(id, root) {
+  if (id === 'welcome') return renderWelcome(root);
   if (id === 'browser') return renderBrowser(root);
   if (id === 'preview') return renderPreview(root);
   if (id === 'files') return renderFiles(root);
@@ -331,6 +333,40 @@ function renderApp(id, root) {
   root.innerHTML = `<div class="lunix-finder-empty" style="height:100%;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;">
     <div><div style="font-weight:600;margin-bottom:6px;">${id.charAt(0).toUpperCase() + id.slice(1)}</div>
     <div style="opacity:.6;font-size:13px;">This app is part of the lunix desktop.</div></div></div>`;
+}
+
+function renderWelcome(root) {
+  root.innerHTML = `
+    <div class="lunix-welcome">
+      <div class="lunix-welcome-command"><span>~/Lunix</span><b>❯</b> start</div>
+      <div class="lunix-welcome-main">
+        <pre class="lunix-welcome-mark" aria-label="Lunix cloud desktop logo"><span class="navy">       ╭──────────────╮
+    ╭──╯              ╰──╮
+  ╭─╯                      ╰─╮
+ ╭╯                          ╰╮
+ │                            │
+ │       </span><span class="blue">╭────╮</span><span class="navy">               │
+ </span><span class="mint">╭──────╮</span><span class="blue">╭╯    ╰╮</span><span class="mint">╭──────╮</span><span class="navy">      │
+</span><span class="mint">╭╯      ╰</span><span class="blue">╯      ╰</span><span class="mint">╯      ╰╮</span><span class="navy">     │
+</span><span class="mint">│              </span><span class="blue">╭╯</span><span class="mint">        │</span><span class="navy">     │
+</span><span class="mint">╰╮          </span><span class="blue">╭─╯</span><span class="mint">        ╭╯</span><span class="navy">     │
+ </span><span class="mint">╰─────────</span><span class="blue">╯</span><span class="mint">  ╰────────╯</span><span class="navy">      │
+            </span><span class="blue">╰────╯</span><span class="navy">              ╰─────╯</span></pre>
+        <div class="lunix-welcome-copy">
+          <p class="lunix-welcome-eyebrow">LUNIX DESKTOP</p>
+          <h1>Your local interface.<br>Your agentic workspace.</h1>
+          <p>Lunix renders a complete desktop locally while agent, workspace, and browser runtimes stay independently replaceable.</p>
+          <ul>
+            <li><b>Agent runtime</b><span>Think, act, and coordinate.</span></li>
+            <li><b>Workspace runtime</b><span>Own files, tools, and processes.</span></li>
+            <li><b>Browser runtime</b><span>Use a real web session beside the work.</span></li>
+          </ul>
+          <button type="button" data-open-agent>Open Assistant <span>↗</span></button>
+        </div>
+      </div>
+      <div class="lunix-welcome-footer"><span>Local renderer</span><span>Remote intelligence</span><span>Human control</span></div>
+    </div>`;
+  root.querySelector('[data-open-agent]').onclick = () => openApp(GROUP_C[0]);
 }
 
 function renderFiles(root) {
@@ -1234,12 +1270,8 @@ function escapeHtml(s) { return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<
 buildDock();
 document.getElementById('vscode-launcher')?.addEventListener('click', openVscodeLauncher);
 const placeWindow = (win, left, top, width, height) => { win.style.left = `${innerWidth * left}px`; win.style.top = `${innerHeight * top}px`; win.style.width = `${innerWidth * width}px`; win.style.height = `${innerHeight * height}px`; };
-const filesWindow = openApp(GROUP_B.find((app) => app.id === 'files'));
-placeWindow(filesWindow, .29, .42, .42, .39);
-const agentWindow = openApp(GROUP_C[0]);
-placeWindow(agentWindow, .035, .07, .93, .82);
-const previewWindow = openApp(GROUP_B.find((app) => app.id === 'preview'));
-placeWindow(previewWindow, .55, .20, .43, .58);
-focusWin(agentWindow);
+const welcomeWindow = openApp(WELCOME_APP);
+placeWindow(welcomeWindow, .18, .12, .64, .72);
+focusWin(welcomeWindow);
 refreshDesktopFiles();
 window.addEventListener('focus', refreshDesktopFiles);
