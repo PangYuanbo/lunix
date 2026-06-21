@@ -749,7 +749,7 @@ function renderAgent(root) {
     if (!match || !agentSession) return;
     try {
       const preview = await nodusClient.sessions.preview(agentSession.session.id, Number(match[1]));
-      mountAssistant().add(statusMessage('Preview ready', `Opened port ${preview.port}.`, 'success'));
+      mountAssistant().add({ id: `preview-${key}`, role: 'system', parts: [{ type: 'data-status', data: { title: 'Preview ready', detail: `Port ${preview.port} is available.`, tone: 'success', actionLabel: 'Open preview', onAction: () => openBrowserUrl(preview.url) } }] });
       openBrowserUrl(preview.url);
     } catch (error) { mountAssistant().add(statusMessage('Preview unavailable', error.message || String(error), 'warning')); }
   }

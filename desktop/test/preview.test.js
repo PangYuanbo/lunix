@@ -5,6 +5,8 @@ const server = fs.readFileSync(require.resolve('../server.js'), 'utf8');
 assert.match(app, /e\.code !== 'Space'/);
 assert.match(app, /video src=.*controls autoplay/);
 assert.match(app, /ext === 'md'/);
+assert.match(app, /actionLabel: 'Open preview'/);
+assert.match(app, /nodusClient\.sessions\.preview/);
 assert.match(server, /accept-ranges/);
 assert.match(server, /\/api\/local\/raw/);
 console.log('preview wiring ok');
