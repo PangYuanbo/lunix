@@ -15,6 +15,7 @@ fs.writeFileSync(path.join(out, 'config.js'), `window.__LUNIX=${JSON.stringify({
   nodusUrl: process.env.NODUS_URL || 'https://nodus-api-production-d291.up.railway.app',
   nodusUser: process.env.NODUS_USER || 'lunix-aaron-local',
   terminalUrl: '/terminal/?theme=sand&embed=1',
+  browserRelayUrl: process.env.BROWSER_RELAY_URL || 'wss://lunix-browser-relay.yuanbopang.workers.dev',
 })};\n`);
 fs.writeFileSync(path.join(out, 'vercel.json'), JSON.stringify({ cleanUrls: true, trailingSlash: false }, null, 2));
 console.log(`web build → ${out}`);

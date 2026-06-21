@@ -447,7 +447,8 @@ function renderBrowser(root) {
   let hosted = null;
 
   async function connectHosted(connectUrl, width, height) {
-    const ws = new WebSocket(connectUrl); let requestId = 0; const pending = new Map();
+    const socketUrl = CFG.browserRelayUrl ? CFG.browserRelayUrl + '?url=' + encodeURIComponent(connectUrl) : connectUrl;
+    const ws = new WebSocket(socketUrl); let requestId = 0; const pending = new Map();
     let pageSession = null, pageTarget = null, targets = [], viewport = { width, height };
     const send = (method, params, targetSession) => new Promise((resolve, reject) => {
       const id = ++requestId; pending.set(id, { resolve, reject });
