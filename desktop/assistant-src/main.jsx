@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { AlertCircle, BarChart3, CheckCircle2, Info, LoaderCircle } from 'lucide-react';
+import { AlertCircle, BarChart3, CheckCircle2, Info, LoaderCircle, RotateCcw, Square } from 'lucide-react';
 import { Conversation, ConversationContent, ConversationScrollButton } from './ai-elements/conversation';
 import { Message, MessageContent, MessageResponse } from './ai-elements/message';
 import { Reasoning, ReasoningContent, ReasoningTrigger } from './ai-elements/reasoning';
@@ -40,7 +40,10 @@ function App({ store }) {
     {messages.map((message) => <Message from={message.role} key={message.id}>
       <MessageContent>{message.parts.map((part, index) => <Part key={`${part.type}-${index}`} part={part} streaming={Boolean(message.metadata?.streaming)} />)}</MessageContent>
     </Message>)}
-    {snapshot.busy && <div className="ai-working"><LoaderCircle className="spin" size={15} />Agent is working…</div>}
+    {snapshot.task && <div className={`ai-task-state is-${snapshot.task.tone || 'working'}`} role="status" aria-live="polite">
+      <div className="ai-task-state-copy">{snapshot.task.tone === 'warning' ? <AlertCircle size={16} /> : <LoaderCircle className="spin" size={16} />}<div><b>{snapshot.task.title}</b><span>{snapshot.task.detail}</span></div><time>{snapshot.task.elapsed}</time></div>
+      {snapshot.task.actions && <div className="ai-task-actions"><button onClick={snapshot.task.onReconnect}><RotateCcw size={13} />Reconnect</button><button onClick={snapshot.task.onStop}><Square size={12} />Stop</button></div>}
+    </div>}
   </ConversationContent>{snapshot.loading && <div className="ai-loading" role="status" aria-live="polite">
     <div className="ai-loading-card"><LoaderCircle className="spin" size={18} /><div><b>{snapshot.loading.title}</b><span>{snapshot.loading.detail}</span></div></div>
     <div className="ai-skeleton"><i /><i /><i /><i /></div>
@@ -48,7 +51,7 @@ function App({ store }) {
 }
 
 function createStore() {
-  let snapshot = { messages: [], busy: false, loading: null };
+  let snapshot = { messages: [], busy: false, loading: null, task: null };
   const listeners = new Set();
   const emit = () => listeners.forEach((listener) => listener(snapshot));
   return {
@@ -60,6 +63,7 @@ function createStore() {
     remove(id) { snapshot = { ...snapshot, messages: snapshot.messages.filter((item) => item.id !== id) }; emit(); },
     setBusy(busy) { snapshot = { ...snapshot, busy }; emit(); },
     setLoading(loading) { snapshot = { ...snapshot, loading }; emit(); },
+    setTask(task) { snapshot = { ...snapshot, task }; emit(); },
   };
 }
 
@@ -77,6 +81,7 @@ window.LunixAssistant = {
       add: store.upsert,
       setBusy: store.setBusy,
       setLoading: store.setLoading,
+      setTask: store.setTask,
       destroy: () => root.unmount(),
     };
   },

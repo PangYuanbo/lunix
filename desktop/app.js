@@ -656,7 +656,7 @@ function renderAgent(root) {
   root.style.background = '#fff';
   root.style.position = 'relative';
   let booting = true, sending = false, aborted = false;
-  let assistantView = null, chatSocket = null, chatReadyTimer = null, socketReady = false;
+  let assistantView = null, chatSocket = null, chatReadyTimer = null, taskTimer = null, taskStartedAt = 0, lastServerFrameAt = 0, lastProgressAt = 0, reconnectAttempts = 0, socketReady = false;
   const streamText = new Map(), openedPreviews = new Set();
   let refreshChanges = async () => {};
 
@@ -704,9 +704,38 @@ function renderAgent(root) {
     root.querySelector('[data-send]').disabled = locked && !allowStop;
     root.querySelector('[data-send]').style.opacity = locked && !allowStop ? '.45' : '1';
     input.parentElement.style.opacity = locked ? '.65' : '1';
+    input.placeholder = locked ? (allowStop ? 'Agent is processing the current task…' : 'Please wait…') : 'Describe a task, or type / for commands';
   };
   const showLoading = (title, detail) => { mountAssistant().setLoading({ title, detail }); lockComposer(true); root.setAttribute('aria-busy', 'true'); };
   const hideLoading = () => { mountAssistant().setLoading(null); lockComposer(sending, sending); root.removeAttribute('aria-busy'); };
+  const elapsedLabel = (ms) => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`;
+  const clearTaskState = () => { clearInterval(taskTimer); taskTimer = null; mountAssistant().setTask(null); };
+  const stopTask = async () => {
+    if (!sending || !agentSession) return;
+    aborted = true; statusEl.textContent = 'stopping…'; clearTaskState(); mountAssistant().setBusy(false); showLoading('Stopping the agent', 'Saving the workspace and shutting down the runtime…');
+    try { await nodusClient.sessions.pause(agentSession.session.id); clearRuntimeSession(selectedAgentProvider); agentSession = null; closeChat(); authCard('Task stopped. Connect again to start a fresh runtime.'); }
+    catch (error) {
+      aborted = false; statusEl.textContent = 'stop failed'; mountAssistant().setBusy(true); hideLoading();
+      taskTimer = setInterval(updateTaskState, 1000);
+      mountAssistant().setTask({ title: 'Could not stop the agent', detail: error.message || String(error), tone: 'warning', actions: true, elapsed: elapsedLabel(Date.now() - taskStartedAt), onReconnect: reconnectTask, onStop: stopTask });
+    }
+  };
+  const reconnectTask = () => {
+    if (!sending || !agentSession) return;
+    reconnectAttempts += 1; statusEl.textContent = 'reconnecting…'; lastServerFrameAt = Date.now(); connectChat(); updateTaskState();
+  };
+  const updateTaskState = () => {
+    if (!sending) return clearTaskState();
+    const now = Date.now(), elapsed = now - taskStartedAt, connectionSilent = now - lastServerFrameAt, progressSilent = now - lastProgressAt;
+    let title = 'Agent is working', detail = 'The current task is still running.', tone = 'working', actions = false;
+    if (elapsed < 8000) detail = 'Understanding the request and preparing the workspace…';
+    else if (elapsed < 30000) detail = 'Working in the runtime. Complex tasks can take a little while…';
+    else detail = 'Still running. You can safely wait or stop the task.';
+    if (progressSilent >= 30000) { title = 'No recent output'; detail = connectionSilent < 10000 ? 'The service is connected, but the agent has not produced new output for 30 seconds.' : 'No server update has arrived recently.'; tone = 'warning'; actions = true; }
+    if (progressSilent >= 90000) { title = 'Agent may be stalled'; detail = connectionSilent < 10000 ? 'The service is online, but the runtime has produced no new output for 90 seconds.' : 'The connection and runtime may be unavailable.'; tone = 'warning'; actions = true; }
+    mountAssistant().setTask({ title, detail, tone, actions, elapsed: elapsedLabel(elapsed), onReconnect: reconnectTask, onStop: stopTask });
+  };
+  const startTaskState = () => { taskStartedAt = lastServerFrameAt = lastProgressAt = Date.now(); reconnectAttempts = 0; clearInterval(taskTimer); taskTimer = setInterval(updateTaskState, 1000); updateTaskState(); };
   const statusMessage = (title, detail, tone = 'info') => ({
     id: `status-${Date.now()}-${Math.random()}`, role: 'system',
     parts: [{ type: 'data-status', data: { title, detail, tone } }],
@@ -743,6 +772,7 @@ function renderAgent(root) {
   }
   function finishTurn() {
     sending = false; setRunning(false); mountAssistant().setBusy(false);
+    clearTaskState();
     hideLoading();
     if (!aborted) statusEl.textContent = `${selectedAgentProvider} · live`;
     refreshDesktopFiles(); refreshChanges();
@@ -755,20 +785,23 @@ function renderAgent(root) {
     chatReadyTimer = setTimeout(() => {
       if (socketReady) return;
       statusEl.textContent = 'connection timed out';
-      mountAssistant().add(statusMessage('Connection timed out', 'The agent did not become ready. Try New chat again.', 'warning'));
-      if (sending) finishTurn(); else hideLoading();
+      if (sending) mountAssistant().setTask({ title: 'Connection timed out', detail: 'Lunix cannot confirm the task state. Reconnect or stop the runtime.', tone: 'warning', actions: true, elapsed: elapsedLabel(Date.now() - taskStartedAt), onReconnect: reconnectTask, onStop: stopTask });
+      else { mountAssistant().add(statusMessage('Connection timed out', 'The agent did not become ready. Try New chat again.', 'warning')); hideLoading(); }
     }, 15000);
     chatSocket.onopen = () => { chatSocket?.send(JSON.stringify({ type: 'ping' })); };
     chatSocket.onmessage = async (event) => {
       let frame; try { frame = JSON.parse(event.data); } catch { return; }
+      lastServerFrameAt = Date.now();
       if (frame.type === 'ready') { clearTimeout(chatReadyTimer); chatReadyTimer = null; socketReady = true; statusEl.textContent = `${selectedAgentProvider} · live`; hideLoading(); return; }
       if (frame.type === 'status') { mountAssistant().setBusy(Boolean(frame.busy)); if (frame.busy) lockComposer(true, true); return; }
       if (frame.type === 'delta') {
         if (aborted || frame.preview) return;
+        lastProgressAt = Date.now();
         const value = frame.text || `${streamText.get(frame.uuid) || ''}${frame.delta || ''}`;
         streamText.set(frame.uuid, value); mountAssistant().stream(frame.uuid, value, frame.preview); return;
       }
       if (frame.type === 'done') {
+        lastProgressAt = Date.now();
         const value = frame.text || streamText.get(frame.uuid) || '';
         streamText.delete(frame.uuid);
         if (!aborted) { mountAssistant().finish(frame.uuid, value); await openAssistantLinks(value, frame.uuid); }
@@ -782,7 +815,10 @@ function renderAgent(root) {
     };
     chatSocket.onclose = () => {
       socketReady = false;
-      if (sending && !aborted) { mountAssistant().add(statusMessage('Connection interrupted', 'Reconnect and send the task again.', 'warning')); finishTurn(); }
+      if (sending && !aborted) {
+        if (reconnectAttempts < 1) { reconnectAttempts += 1; statusEl.textContent = 'reconnecting…'; setTimeout(() => sending && connectChat(), 1000); }
+        else { statusEl.textContent = 'connection lost'; mountAssistant().setTask({ title: 'Connection lost', detail: 'The task may still be running, but Lunix cannot receive updates.', tone: 'warning', actions: true, elapsed: elapsedLabel(Date.now() - taskStartedAt), onReconnect: reconnectTask, onStop: stopTask }); }
+      }
       else { statusEl.textContent = 'disconnected'; mountAssistant().add(statusMessage('Agent disconnected', 'Start a new chat to reconnect.', 'warning')); hideLoading(); }
     };
   }
@@ -908,10 +944,10 @@ function renderAgent(root) {
   async function send() {
     const text = input.value.trim();
     if (!text || sending || !agentSession) return;
-    input.value = ''; autoGrow(); mountAssistant().addUser(`user-${Date.now()}`, text); sending = true; aborted = false; setRunning(true); lockComposer(true, true); mountAssistant().setBusy(true); statusEl.textContent = 'thinking…';
+    input.value = ''; autoGrow(); mountAssistant().addUser(`user-${Date.now()}`, text); sending = true; aborted = false; setRunning(true); lockComposer(true, true); mountAssistant().setBusy(true); startTaskState(); statusEl.textContent = 'thinking…';
     try {
-      if (socketReady && chatSocket?.readyState === WebSocket.OPEN) chatSocket.send(JSON.stringify({ type: 'send', text: text + AGENT_BROWSER_PROMPT }));
-      else { const r = await nodusClient.sessions.sendMessage(agentSession.session.id, text + AGENT_BROWSER_PROMPT); if (!aborted) await pushEvents(r.events); finishTurn(); }
+      if (!socketReady || chatSocket?.readyState !== WebSocket.OPEN) throw new Error('Agent connection is not ready.');
+      chatSocket.send(JSON.stringify({ type: 'send', text: text + AGENT_BROWSER_PROMPT }));
     } catch (e) {
       if (!aborted) { if (/not found|not live|unavailable|ended/i.test(e.message || e)) { clearRuntimeSession(selectedAgentProvider); agentSession = null; } mountAssistant().add(statusMessage('Agent error', e.message || String(e), 'warning')); }
       finishTurn();
@@ -925,7 +961,7 @@ function renderAgent(root) {
   const ARROW = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>';
   const STOP = '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2.5"/></svg>';
   const setRunning = (on) => { sendBtn.innerHTML = on ? STOP : ARROW; sendBtn.title = on ? 'Stop' : 'Send (↵)'; sendBtn.style.background = on ? '#b65347' : '#17796d'; };
-  sendBtn.onclick = () => { if (sending) { aborted = true; sending = false; setRunning(false); mountAssistant().setBusy(false); hideLoading(); statusEl.textContent = 'stopped'; } else send(); };
+  sendBtn.onclick = () => { if (sending) stopTask(); else send(); };
 
   // model selector dropdown
   const modelBtn = root.querySelector('[data-model]'), modelName = root.querySelector('[data-model-name]');
@@ -1072,7 +1108,7 @@ function renderAgent(root) {
     search.addEventListener('input', renderTab);
     renderTab(); renderRuntime(); refreshChanges();
   })();
-  cleanup.set('agent', () => { closeChat(); unmountAssistant(); document.removeEventListener('click', closeModel); });
+  cleanup.set('agent', () => { clearTaskState(); closeChat(); unmountAssistant(); document.removeEventListener('click', closeModel); });
   mountAssistant(); boot();
 }
 
