@@ -193,10 +193,10 @@ function openApp(app) {
   w.setAttribute('aria-label', app.label);
   const desiredWidth = app.id === 'browser' ? 1040 : app.id === 'preview' ? 900 : app.id === 'files' ? 840 : app.id === 'terminal' ? 900 : app.id === 'memo' ? 760 : app.id === 'agent' ? 760 : 620;
   const desiredHeight = app.id === 'browser' ? 720 : app.id === 'preview' ? 650 : app.id === 'files' ? 560 : app.id === 'terminal' ? 600 : app.id === 'agent' ? 580 : 480;
-  const width = IS_TOUCH ? Math.min(desiredWidth, Math.max(360, innerWidth - 24)) : desiredWidth;
-  const height = IS_TOUCH ? Math.min(desiredHeight, Math.max(280, innerHeight - 76)) : desiredHeight;
-  const left = IS_TOUCH ? Math.max(12, Math.min(120 + idx * 34, innerWidth - width - 12)) : 120 + idx * 34;
-  const top = IS_TOUCH ? Math.max(48, Math.min(64 + idx * 30, innerHeight - height - 12)) : 64 + idx * 30;
+  const width = Math.min(desiredWidth, Math.max(360, innerWidth - 24));
+  const height = Math.min(desiredHeight, Math.max(280, innerHeight - 76));
+  const left = Math.max(12, Math.min(120 + idx * 34, innerWidth - width - 12));
+  const top = Math.max(48, Math.min(64 + idx * 30, innerHeight - height - 12));
   w.style.cssText = `left:${left}px;top:${top}px;width:${width}px;height:${height}px;z-index:${++zTop};`;
 
   const titleIcon = app.icon || I.doc;
@@ -284,7 +284,11 @@ function makeDraggable(win, handle) {
     handle.setPointerCapture(e.pointerId); // route every move here even over the iframe or outside the window
     freezeIframes(true); win.style.willChange = 'transform'; document.body.classList.add('lunix-dragging');
     // Move on the compositor with transform (no per-frame relayout of the heavy iframe subtree).
-    const move = (ev) => { dx = ev.clientX - sx; dy = Math.max(-baseT, ev.clientY - sy); win.style.transform = `translate(${dx}px,${dy}px)`; };
+    const move = (ev) => {
+      dx = Math.min(innerWidth - win.offsetWidth - 12, Math.max(12, baseL + ev.clientX - sx)) - baseL;
+      dy = Math.min(innerHeight - win.offsetHeight - 12, Math.max(48, baseT + ev.clientY - sy)) - baseT;
+      win.style.transform = `translate(${dx}px,${dy}px)`;
+    };
     const up = () => {
       handle.removeEventListener('pointermove', move); handle.removeEventListener('pointerup', up); handle.removeEventListener('pointercancel', up);
       win.style.transform = ''; win.style.willChange = '';
@@ -954,7 +958,7 @@ function renderAgent(root) {
     card.innerHTML = `
       <div style="width:34px;height:34px;color:#17796d;margin:0 auto;display:flex;">${I.agent}</div>
       <div style="font-weight:600;color:#24231f;">Connect ${agentProviderName()}</div>
-      <div style="font-size:12px;color:#9e9a93;line-height:1.5;">${selectedAgentProvider === 'codex' ? 'Sign in with your ChatGPT subscription using a device code.' : 'Sign in with your Claude subscription using the built-in or external browser.'} No API key is stored in lunix.</div>
+      <div style="font-size:12px;color:#9e9a93;line-height:1.5;">${selectedAgentProvider === 'codex' ? 'Sign in with your ChatGPT subscription using a device code.' : 'Sign in with your Claude subscription in the built-in browser.'} No API key is stored in lunix.</div>
       <button data-connect style="border:none;background:#17796d;color:#fff;border-radius:9px;padding:9px;font-size:13px;font-weight:600;cursor:pointer;">Sign in with ${agentProviderName()}</button>
       <button data-switch-provider style="border:1px solid #d7d2c8;background:#fff;color:#6f685e;border-radius:9px;padding:9px;font-size:13px;cursor:pointer;">Use ${selectedAgentProvider === 'claude' ? 'Codex' : 'Claude'} instead</button>
       <div data-err style="color:#b65347;font-size:12px;min-height:14px;">${errMsg ? escapeHtml(errMsg) : ''}</div>`;
@@ -1011,10 +1015,10 @@ function renderAgent(root) {
     unmountAssistant(); closeChat();
     statusEl.textContent = 'waiting for login'; log.innerHTML = '';
     const card = document.createElement('div'); card.style.cssText = 'margin:auto;max-width:360px;text-align:center;display:flex;flex-direction:column;gap:12px;';
-    card.innerHTML = `<div style="font-weight:600;color:#24231f;">Finish signing in</div><div style="font-size:12px;color:#9e9a93;line-height:1.5;">Choose the built-in or external browser for Claude’s real login page. After login, paste the authorization code here.</div><button data-open style="border:1px solid #e2dfd8;background:#fff;border-radius:9px;padding:8px;font-size:13px;cursor:pointer;">Open login</button><input data-code placeholder="Paste authorization code" autocomplete="off" style="border:1px solid #e2dfd8;border-radius:9px;padding:9px 12px;font-size:13px;outline:none;"><button data-finish style="border:none;background:#17796d;color:#fff;border-radius:9px;padding:9px;font-size:13px;font-weight:600;cursor:pointer;">Finish login</button><div data-err style="color:#b65347;font-size:12px;min-height:14px;"></div>`;
+    card.innerHTML = `<div style="font-weight:600;color:#24231f;">Finish signing in</div><div style="font-size:12px;color:#9e9a93;line-height:1.5;">Complete Claude’s login in the built-in browser, then paste the authorization code here.</div><button data-open style="border:1px solid #e2dfd8;background:#fff;border-radius:9px;padding:8px;font-size:13px;cursor:pointer;">Open login</button><input data-code placeholder="Paste authorization code" autocomplete="off" style="border:1px solid #e2dfd8;border-radius:9px;padding:9px 12px;font-size:13px;outline:none;"><button data-finish style="border:none;background:#17796d;color:#fff;border-radius:9px;padding:9px;font-size:13px;font-weight:600;cursor:pointer;">Finish login</button><div data-err style="color:#b65347;font-size:12px;min-height:14px;"></div>`;
     log.appendChild(card);
     const code = card.querySelector('[data-code]'), finish = card.querySelector('[data-finish]'), err = card.querySelector('[data-err]');
-    const open = () => openBrowserUrl(authSession.authUrl); card.querySelector('[data-open]').onclick = open; open();
+    const open = () => openBrowserUrl(authSession.authUrl, true); card.querySelector('[data-open]').onclick = open; open();
     const complete = async () => {
       if (!code.value.trim()) { err.textContent = 'Paste the authorization code.'; return; }
       finish.disabled = true; finish.textContent = 'Verifying login…'; err.textContent = '';

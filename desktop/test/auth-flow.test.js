@@ -4,6 +4,8 @@ const app = fs.readFileSync(require.resolve('../app.js'), 'utf8');
 const server = fs.readFileSync(require.resolve('../server.js'), 'utf8');
 assert.match(app, /authMethod: 'subscription'/);
 assert.match(app, /openBrowserUrl\(authSession\.authUrl\)/);
+assert.match(app, /openBrowserUrl\(authSession\.authUrl, true\)/);
+assert.match(app, /Claude subscription in the built-in browser/);
 assert.match(app, /providerCode: code\.value\.trim\(\)/);
 assert.doesNotMatch(app, /setTimeout\(r, 3000\)/);
 assert.match(app, /Starting Agent…/);
