@@ -418,6 +418,7 @@ function renderBrowser(root) {
           <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 2.6-6.4M3 4v4h4"/></svg></button>
         <input data-url placeholder="Search or enter a URL" spellcheck="false"
           style="flex:1;height:32px;border:1px solid #e2dfd8;border-radius:9px;background:#fff;padding:0 14px;font-size:13px;color:#24231f;outline:none;">
+        <button data-new-session title="Start a fresh browser session" style="height:32px;padding:0 12px;border:1px solid #d8d4cb;border-radius:9px;background:#fff;color:#6f685e;font-size:12px;cursor:pointer;">New session</button>
         <button data-go style="height:32px;padding:0 16px;border:none;border-radius:9px;background:#17796d;color:#fff;font-size:13px;font-weight:600;cursor:pointer;">Go</button>
       </div>
       <div data-view tabindex="0" style="position:relative;flex:1;overflow:hidden;background:#fff;outline:none;cursor:default;">
@@ -521,9 +522,10 @@ function renderBrowser(root) {
   const navigate = (url) => { if (!url) return; urlIn.value = url; if (sessionId) hosted ? hosted.navigate(url) : post('/api/browser/navigate', { sessionId, url }); };
   const onNavigate = (e) => navigate(e.detail);
   window.addEventListener('lunix-browser-navigate', onNavigate);
-  cleanup.set('browser', () => { window.removeEventListener('lunix-browser-navigate', onNavigate); hosted?.close(); if (!sessionId) return; const b = JSON.stringify({ sessionId }); if (navigator.sendBeacon) navigator.sendBeacon('/api/browser/release', new Blob([b], { type: 'application/json' })); else post('/api/browser/release', { sessionId }); });
+  cleanup.set('browser', () => { window.removeEventListener('lunix-browser-navigate', onNavigate); hosted?.close(); });
   urlIn.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') go(); }); // stopPropagation: don't forward to the page
   root.querySelector('[data-go]').onclick = go;
+  root.querySelector('[data-new-session]').onclick = async () => { if (sessionId) await post('/api/browser/release', { sessionId }); windows.get('browser')?.querySelector('.close').click(); browserTargetUrl = ''; openApp(GROUP_B.find((app) => app.id === 'browser')); };
   root.querySelector('[data-reload]').onclick = () => { if (sessionId) hosted ? hosted.navigate(urlIn.value || 'https://www.google.com') : post('/api/browser/navigate', { sessionId, url: urlIn.value || 'https://www.google.com' }); };
   let rt; const ro = new ResizeObserver(() => { clearTimeout(rt); rt = setTimeout(() => { if (!sessionId) return; const { width, height } = size(); fit(width, height); hosted ? hosted.resize(width, height) : post('/api/browser/resize', { sessionId, width, height }); }, 250); });
   ro.observe(view);
@@ -573,7 +575,11 @@ function renderTerminal(root) {
 
 // The agent runtime is the system's brain — first-class. One session is booted once and reused
 // across opens (the other runtimes are resources it drives). Backed by the Nodus SDK.
-let agentSession = null;
+const RUNTIME_COOKIE = 'lunix_runtime_session';
+const readRuntimeSession = () => { try { const raw = document.cookie.split('; ').find((part) => part.startsWith(RUNTIME_COOKIE + '=')); return raw ? JSON.parse(decodeURIComponent(raw.split('=').slice(1).join('='))) : null; } catch { return null; } };
+const saveRuntimeSession = (value) => { document.cookie = `${RUNTIME_COOKIE}=${encodeURIComponent(JSON.stringify(value))}; Path=/; Max-Age=2592000; SameSite=Lax${location.protocol === 'https:' ? '; Secure' : ''}`; };
+const clearRuntimeSession = () => { document.cookie = `${RUNTIME_COOKIE}=; Path=/; Max-Age=0; SameSite=Lax`; };
+let agentSession = readRuntimeSession();
 
 function renderAgent(root) {
   root.classList.remove('no-padding');
@@ -681,7 +687,7 @@ function renderAgent(root) {
         while (result.status === 'completing' && Date.now() < deadline) result = await nodusClient.agents.completeAuth(agentId, authSession.id, { providerCode: code.value.trim() });
         if (result.status !== 'healthy') throw new Error('Login timed out. Please start again.');
         clearInterval(timer); finish.textContent = 'Starting Agent…';
-        const session = await nodusClient.sessions.start(agentId); agentSession = { agentId, session: session.session }; booting = false; statusEl.textContent = 'claude · live'; msgs.length = 0; paintLog();
+        const session = await nodusClient.sessions.start(agentId); agentSession = { agentId, session: session.session }; saveRuntimeSession(agentSession); booting = false; statusEl.textContent = 'claude · live'; msgs.length = 0; paintLog();
       } catch (e) { clearInterval(timer); finish.disabled = false; finish.textContent = 'Finish login'; err.textContent = e.message || e; }
     };
     finish.onclick = complete; code.addEventListener('keydown', (e) => { if (e.key === 'Enter') complete(); }); code.focus();
@@ -690,14 +696,21 @@ function renderAgent(root) {
   async function boot() {
     if (!nodusClient) { statusEl.textContent = 'runtime offline'; booting = false; msgs.length = 0; msgs.push({ role: 'system', text: 'Agent runtime not reachable on :8787. Start it (npm run dev).' }); return paintLog(); }
     if (!agentSession) return authCard();
-    booting = false; statusEl.textContent = 'claude · live'; paintLog();
+    statusEl.textContent = 'restoring…';
+    try {
+      const restored = await nodusClient.sessions.events(agentSession.session.id);
+      await pushEvents(restored.events);
+      booting = false; statusEl.textContent = 'claude · live'; paintLog();
+    } catch (error) {
+      clearRuntimeSession(); agentSession = null; authCard('Saved runtime expired. Connect again.');
+    }
   }
   async function send() {
     const text = input.value.trim();
     if (!text || sending || !agentSession) return;
     input.value = ''; msgs.push({ role: 'user', text }); sending = true; statusEl.textContent = 'thinking…'; paintLog();
     try { await pushEvents((await nodusClient.sessions.sendMessage(agentSession.session.id, text)).events); }
-    catch (e) { msgs.push({ role: 'system', text: 'error: ' + (e.message || e) }); }
+    catch (e) { if (/not found|not live|unavailable|ended/i.test(e.message || e)) { clearRuntimeSession(); agentSession = null; } msgs.push({ role: 'system', text: 'error: ' + (e.message || e) }); }
     sending = false; statusEl.textContent = 'claude · live'; paintLog();
   }
   input.addEventListener('keydown', (e) => { if (e.key === 'Enter') send(); });
