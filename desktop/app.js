@@ -157,6 +157,7 @@ function buildDock() {
 
 // ---- window manager ----
 function focusWin(el) { el.style.zIndex = ++zTop; windows.forEach((w) => w.classList.remove('active')); el.classList.add('active'); }
+window.addEventListener('blur', () => setTimeout(() => { const win = document.activeElement?.closest?.('.lunix-desktop-window'); if (document.activeElement?.tagName === 'IFRAME' && win) focusWin(win); }));
 
 function openApp(app) {
   if (windows.has(app.id)) { focusWin(windows.get(app.id)); return windows.get(app.id); }
@@ -191,6 +192,7 @@ function openApp(app) {
   renderApp(app.id, w.querySelector('.lunix-window-content'));
 
   w.addEventListener('mousedown', () => focusWin(w));
+  w.addEventListener('focusin', () => focusWin(w));
   w.querySelector('.close').onclick = (e) => { e.stopPropagation(); w.remove(); windows.delete(app.id); const fn = cleanup.get(app.id); if (fn) { cleanup.delete(app.id); try { fn(); } catch (_) {} } };
   makeDraggable(w, w.querySelector('.lunix-window-titlebar'));
   w.querySelectorAll('.lunix-window-resize-handle').forEach((h) => makeResizable(w, h));
