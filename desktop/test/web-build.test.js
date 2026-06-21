@@ -6,5 +6,6 @@ assert.match(build, /terminalUrl: '\/terminal\/\?theme=sand&embed=1'/);
 assert.match(build, /\['web', 'src'\]/);
 assert.match(build, /web-api/);
 assert.match(build, /browserRelayUrl/);
+assert.match(build, /app\.js\?v=/);
 assert.doesNotMatch(build, /web-server\.js/);
 console.log('safe web build wiring ok');
