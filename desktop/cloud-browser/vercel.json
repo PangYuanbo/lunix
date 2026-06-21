@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/plan-b", "destination": "/plan-b.html" },
+    { "source": "/cloud-browser", "destination": "/index.html" }
+  ]
+}
