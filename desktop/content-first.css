@@ -92,6 +92,8 @@ html, body { background: #cde4ee !important; font-family: -apple-system, BlinkMa
   box-shadow: 0 30px 76px rgba(31, 49, 68, .28), 0 3px 12px rgba(31, 49, 68, .12) !important;
 }
 
+.lunix-desktop-window:not(.active) iframe { pointer-events: none; }
+
 .lunix-window-titlebar {
   flex-basis: 24px !important;
   height: 24px !important;

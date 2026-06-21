@@ -157,7 +157,6 @@ function buildDock() {
 
 // ---- window manager ----
 function focusWin(el) { el.style.zIndex = ++zTop; windows.forEach((w) => w.classList.remove('active')); el.classList.add('active'); }
-window.addEventListener('blur', () => setTimeout(() => { const win = document.activeElement?.closest?.('.lunix-desktop-window'); if (document.activeElement?.tagName === 'IFRAME' && win) focusWin(win); }));
 
 function openApp(app) {
   if (windows.has(app.id)) { focusWin(windows.get(app.id)); return windows.get(app.id); }

@@ -4,7 +4,7 @@ const app = fs.readFileSync(require.resolve('../app.js'), 'utf8');
 const server = fs.readFileSync(require.resolve('../server.js'), 'utf8');
 assert.match(app, /e\.code !== 'Space'/);
 assert.match(app, /w\.addEventListener\('focusin', \(\) => focusWin\(w\)\)/);
-assert.match(app, /document\.activeElement\?\.tagName === 'IFRAME'/);
+assert.match(fs.readFileSync(require.resolve('../content-first.css'), 'utf8'), /\.lunix-desktop-window:not\(\.active\) iframe \{ pointer-events: none; \}/);
 assert.match(app, /video src=.*controls autoplay/);
 assert.match(app, /ext === 'md'/);
 assert.match(app, /actionLabel: 'Open preview'/);
