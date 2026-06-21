@@ -465,14 +465,6 @@ function renderPreview(root) {
   else root.innerHTML = '<div class="lunix-finder-empty" style="height:100%;display:grid;place-items:center;color:#aaa;">No safe browser preview for this file type.</div>';
 }
 
-function openRuntimePreview(url, port) {
-  const parsed = new URL(url, location.href);
-  if (!/^https?:$/.test(parsed.protocol)) throw new Error('Preview URL must use HTTP or HTTPS.');
-  previewTarget = { url: parsed.href, name: port ? `Web preview on port ${port}` : 'Web preview' };
-  const win = openApp(GROUP_B.find((app) => app.id === 'preview'));
-  renderPreview(win.querySelector('.lunix-window-content'));
-}
-
 function showText(root, text, markdown) { root.innerHTML = markdown ? `<article class="lunix-preview-markdown">${markdownHtml(text)}</article>` : `<pre class="lunix-preview-text">${escapeHtml(text)}</pre>`; }
 
 function markdownHtml(text) {
@@ -862,9 +854,10 @@ function renderAgent(root) {
     if (!match || !agentSession) return;
     try {
       const preview = await nodusClient.sessions.preview(agentSession.session.id, Number(match[1]));
-      mountAssistant().add({ id: `preview-${key}`, role: 'system', parts: [{ type: 'data-status', data: { title: 'Preview ready', detail: `Port ${preview.port} is available.`, tone: 'success', actionLabel: 'Open preview', onAction: () => openRuntimePreview(preview.url, preview.port) } }] });
-      openRuntimePreview(preview.url, preview.port);
-    } catch (error) { mountAssistant().add(statusMessage('Preview unavailable', error.message || String(error), 'warning')); }
+      const open = () => openBrowserUrl(preview.url, true);
+      mountAssistant().add({ id: `browser-${key}`, role: 'system', parts: [{ type: 'data-status', data: { title: 'Browser ready', detail: `Workspace port ${preview.port} is available.`, tone: 'success', actionLabel: 'Open in Browser', onAction: open } }] });
+      open();
+    } catch (error) { mountAssistant().add(statusMessage('Browser unavailable', error.message || String(error), 'warning')); }
   }
   async function pushEvents(events, replace = false) {
     const items = events || [];
