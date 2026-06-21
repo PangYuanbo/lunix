@@ -573,6 +573,7 @@ function renderBrowser(root) {
         frame.src = 'data:image/jpeg;base64,' + message.params.data;
         send('Page.screencastFrameAck', { sessionId: message.params.sessionId }, pageSession).catch(() => {});
       }
+      if (message.method === 'Page.frameNavigated' && message.sessionId === pageSession && !message.params.frame.parentId) urlIn.value = message.params.frame.url;
       if (message.method === 'Target.targetCreated' && message.params.targetInfo.type === 'page') activate(message.params.targetInfo.targetId).catch(() => {});
       if (message.method === 'Target.targetDestroyed') {
         targets = targets.filter((id) => id !== message.params.targetId);

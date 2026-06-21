@@ -8,6 +8,7 @@ assert.match(app, /nodusClient\.browser\.session\(shared, browserTargetUrl\)/);
 assert.match(app, /CFG\.browserRelayUrl/);
 assert.match(app, /Page\.startScreencast/);
 assert.match(app, /Target\.targetCreated/);
+assert.match(app, /Page\.frameNavigated/);
 assert.match(session, /connectUrl: session\.connectUrl/);
 assert.doesNotMatch(app, /debuggerFullscreenUrl|liveViewUrl/);
 console.log('hosted custom Browserbase CDP wiring ok');
